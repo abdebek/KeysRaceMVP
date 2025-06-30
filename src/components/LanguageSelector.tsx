@@ -7,9 +7,10 @@ interface LanguageSelectorProps {
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
+  isMobile?: boolean;
 }
 
-export function LanguageSelector({ isOpen, onToggle, onClose }: LanguageSelectorProps) {
+export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }: LanguageSelectorProps) {
   const { i18n, t } = useTranslation();
 
   const languages = [
@@ -26,6 +27,45 @@ export function LanguageSelector({ isOpen, onToggle, onClose }: LanguageSelector
     localStorage.setItem('preferredLanguage', languageCode);
     onClose();
   };
+
+  // For mobile view, show a different UI
+  if (isMobile) {
+    return (
+      <div className="w-full">
+        <h4 className="text-sm font-medium text-gray-400 mb-3">{t('common.selectLanguage')}</h4>
+        <div className="grid grid-cols-2 gap-2">
+          {languages.map((language) => {
+            const isSelected = i18n.language === language.code;
+            
+            return (
+              <motion.button
+                key={language.code}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleLanguageChange(language.code)}
+                className={`
+                  flex items-center justify-between px-3 py-3 rounded-lg transition-all duration-200 text-left
+                  ${isSelected 
+                    ? 'bg-primary-600/90 text-white shadow-lg' 
+                    : 'bg-dark-800 text-gray-300 hover:text-white hover:bg-dark-700'
+                  }
+                `}
+              >
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg">{language.flag}</span>
+                  <span className="font-medium">{language.name}</span>
+                </div>
+                
+                {isSelected && (
+                  <Check className="w-4 h-4 text-white" />
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">

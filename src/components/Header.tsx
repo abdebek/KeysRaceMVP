@@ -286,25 +286,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
 
             {/* Mobile Navigation Toggle */}
             <div className="lg:hidden flex items-center space-x-3">
-              {/* Mobile Language Selector */}
-              <LanguageSelector
-                isOpen={showLanguageSelector}
-                onToggle={() => setShowLanguageSelector(!showLanguageSelector)}
-                onClose={() => setShowLanguageSelector(false)}
-              />
-
-              {/* Mobile Auth */}
-              {!loading && !user && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => openAuthModal('signin')}
-                  className="p-2 text-gray-400 hover:text-gray-200"
-                >
-                  <User className="w-5 h-5" />
-                </motion.button>
-              )}
-
+              {/* Mobile Menu Button */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -378,6 +360,16 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                       )}
                     </div>
                   )}
+
+                  {/* Language Selector in Mobile Menu */}
+                  <div className="mb-4 pb-4 border-b border-gray-700/30">
+                    <LanguageSelector
+                      isOpen={showLanguageSelector}
+                      onToggle={() => setShowLanguageSelector(!showLanguageSelector)}
+                      onClose={() => setShowLanguageSelector(false)}
+                      isMobile={true}
+                    />
+                  </div>
 
                   {/* Core Navigation */}
                   {navItems.map((item, index) => {
