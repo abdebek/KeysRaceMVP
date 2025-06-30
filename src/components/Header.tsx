@@ -221,8 +221,8 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
               </div>
             </nav>
 
-            {/* Right Side - Language, User & Built on Bolt */}
-            <div className="hidden lg:flex items-center space-x-4">
+            {/* Right Side - Language, User & Bolt Logo */}
+            <div className="flex items-center space-x-4">
               {/* Language Selector */}
               <LanguageSelector
                 isOpen={showLanguageSelector}
@@ -277,6 +277,16 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                   )}
                 </div>
               )}
+
+              {/* Bolt Logo - Top Right */}
+              <a 
+                href="https://bolt.new" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                title={t('header.builtOnBolt')}
+              >
+                <BoltLogo size="sm" variant="transparent" />
+              </a>
             </div>
 
             {/* Mobile Navigation Toggle */}

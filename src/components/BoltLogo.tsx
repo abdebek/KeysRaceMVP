@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 interface BoltLogoProps {
   size?: 'sm' | 'md' | 'lg';
-  variant?: 'default' | 'gradient';
+  variant?: 'default' | 'gradient' | 'transparent';
 }
 
 export function BoltLogo({ size = 'md', variant = 'default' }: BoltLogoProps) {
@@ -18,12 +18,13 @@ export function BoltLogo({ size = 'md', variant = 'default' }: BoltLogoProps) {
   
   const containerClasses = {
     default: 'bg-gradient-to-r from-purple-600/20 to-blue-600/20 border border-purple-500/30',
-    gradient: 'bg-gradient-to-r from-purple-600 to-blue-600'
+    gradient: 'bg-gradient-to-r from-purple-600 to-blue-600',
+    transparent: ''
   };
 
   return (
     <motion.div 
-      className={`${containerClasses[variant]} rounded-xl p-2 flex items-center justify-center`}
+      className={`${containerClasses[variant]} ${variant !== 'transparent' ? 'rounded-xl p-2' : ''} flex items-center justify-center`}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
