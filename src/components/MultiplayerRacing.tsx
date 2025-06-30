@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Trophy, Clock, Zap, Crown, Play, UserCheck, AlertCircle, Plus, LogIn, Loader, RefreshCw, UserPlus, X, Check, Info, Globe, Flag } from 'lucide-react';
+import { Users, Trophy, Clock, Zap, Crown, Play, UserCheck, AlertCircle, Plus, LogIn, Loader, RefreshCw, UserPlus, X, Check, Info, Globe, Flag, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useTypingTest } from '../hooks/useTypingTest';
@@ -11,27 +11,11 @@ import { StatsDisplay } from './StatsDisplay';
 import { VirtualKeyboard } from './VirtualKeyboard';
 import { TestConfig } from '../types';
 import { getRandomText } from '../data/texts';
+import { getCountryFlag } from './CountryFlags';
 
 interface MultiplayerRacingProps {
   onStartRace: () => void;
 }
-
-// Country flags mapping using real country codes
-const countryFlags: Record<string, string> = {
-  'US': '🇺🇸', 'UK': '🇬🇧', 'CA': '🇨🇦', 'AU': '🇦🇺', 'NZ': '🇳🇿',
-  'DE': '🇩🇪', 'FR': '🇫🇷', 'ES': '🇪🇸', 'IT': '🇮🇹', 'NL': '🇳🇱',
-  'BE': '🇧🇪', 'PT': '🇵🇹', 'CH': '🇨🇭', 'AT': '🇦🇹', 'SE': '🇸🇪',
-  'NO': '🇳🇴', 'DK': '🇩🇰', 'FI': '🇫🇮', 'IE': '🇮🇪', 'PL': '🇵🇱',
-  'RU': '🇷🇺', 'UA': '🇺🇦', 'CZ': '🇨🇿', 'HU': '🇭🇺', 'GR': '🇬🇷',
-  'TR': '🇹🇷', 'RO': '🇷🇴', 'BG': '🇧🇬', 'HR': '🇭🇷', 'RS': '🇷🇸',
-  'SK': '🇸🇰', 'SI': '🇸🇮', 'EE': '🇪🇪', 'LV': '🇱🇻', 'LT': '🇱🇹',
-  'BY': '🇧🇾', 'MD': '🇲🇩', 'JP': '🇯🇵', 'KR': '🇰🇷', 'CN': '🇨🇳',
-  'HK': '🇭🇰', 'TW': '🇹🇼', 'SG': '🇸🇬', 'MY': '🇲🇾', 'TH': '🇹🇭',
-  'VN': '🇻🇳', 'PH': '🇵🇭', 'ID': '🇮🇩', 'IN': '🇮🇳', 'BR': '🇧🇷',
-  'MX': '🇲🇽', 'AR': '🇦🇷', 'CL': '🇨🇱', 'CO': '🇨🇴', 'PE': '🇵🇪',
-  'VE': '🇻🇪', 'ZA': '🇿🇦', 'EG': '🇪🇬', 'MA': '🇲🇦', 'NG': '🇳🇬',
-  'KE': '🇰🇪', 'IL': '🇮🇱', 'SA': '🇸🇦', 'AE': '🇦🇪', 'QA': '🇶🇦'
-};
 
 export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
   const { t } = useTranslation();
@@ -170,14 +154,14 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
       console.error('Failed to load active rooms:', error);
       // For demo, create some sample rooms with country information
       setActiveRooms([
-        { id: 'demo-1', name: 'Speed Demons', current_players: 2, max_players: 4, status: 'waiting', country: 'US' },
-        { id: 'demo-2', name: 'Keyboard Warriors', current_players: 3, max_players: 4, status: 'waiting', country: 'UK' },
-        { id: 'demo-3', name: 'Typing Titans', current_players: 1, max_players: 4, status: 'waiting', country: 'DE' },
-        { id: 'demo-4', name: 'Code Racers', current_players: 4, max_players: 4, status: 'racing', country: 'JP' },
-        { id: 'demo-5', name: 'Syntax Speedsters', current_players: 2, max_players: 4, status: 'waiting', country: 'CA' },
-        { id: 'demo-6', name: 'Function Racers', current_players: 1, max_players: 4, status: 'waiting', country: 'FR' },
-        { id: 'demo-7', name: 'Algorithm Aces', current_players: 3, max_players: 4, status: 'waiting', country: 'IN' },
-        { id: 'demo-8', name: 'Byte Blazers', current_players: 2, max_players: 4, status: 'waiting', country: 'BR' }
+        { id: 'demo-1', name: 'Speed Demons', current_players: 2, max_players: 4, status: 'waiting', country: 'US', owner_id: 'demo-owner-1' },
+        { id: 'demo-2', name: 'Keyboard Warriors', current_players: 3, max_players: 4, status: 'waiting', country: 'UK', owner_id: 'demo-owner-2' },
+        { id: 'demo-3', name: 'Typing Titans', current_players: 1, max_players: 4, status: 'waiting', country: 'DE', owner_id: user?.id },
+        { id: 'demo-4', name: 'Code Racers', current_players: 4, max_players: 4, status: 'racing', country: 'JP', owner_id: 'demo-owner-4' },
+        { id: 'demo-5', name: 'Syntax Speedsters', current_players: 2, max_players: 4, status: 'waiting', country: 'CA', owner_id: 'demo-owner-5' },
+        { id: 'demo-6', name: 'Function Racers', current_players: 1, max_players: 4, status: 'waiting', country: 'FR', owner_id: user?.id },
+        { id: 'demo-7', name: 'Algorithm Aces', current_players: 3, max_players: 4, status: 'waiting', country: 'IN', owner_id: 'demo-owner-7' },
+        { id: 'demo-8', name: 'Byte Blazers', current_players: 2, max_players: 4, status: 'waiting', country: 'BR', owner_id: 'demo-owner-8' }
       ]);
     } finally {
       setIsLoadingRooms(false);
@@ -342,13 +326,13 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
     if (roomFilter === 'available') return activeRooms.filter(room => room.current_players < room.max_players && room.status === 'waiting');
     if (roomFilter === 'waiting') return activeRooms.filter(room => room.status === 'waiting');
     if (roomFilter === 'racing') return activeRooms.filter(room => room.status === 'racing');
+    if (roomFilter === 'my-rooms') return activeRooms.filter(room => room.owner_id === user?.id);
     return activeRooms;
   };
 
-  // Get country flag emoji
-  const getCountryFlag = (countryCode?: string) => {
-    if (!countryCode) return '🌍';
-    return countryFlags[countryCode] || '🌍';
+  // Check if user is the owner of a room
+  const isRoomOwner = (roomOwnerId: string) => {
+    return user?.id === roomOwnerId;
   };
 
   // Show loading state
@@ -563,6 +547,18 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
               >
                 In Progress
               </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setRoomFilter('my-rooms')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  roomFilter === 'my-rooms' 
+                    ? 'bg-purple-600 text-white' 
+                    : 'bg-dark-800 text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                My Rooms
+              </motion.button>
             </div>
             
             <div className="flex space-x-3">
@@ -594,61 +590,82 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
             </div>
           ) : getFilteredRooms().length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {getFilteredRooms().map((room) => (
-                <motion.div
-                  key={room.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-dark-800/50 rounded-xl p-4 border border-gray-700/30 hover:border-primary-500/30 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-2xl" title={room.country}>{getCountryFlag(room.country)}</span>
-                        <h4 className="font-semibold text-gray-200">{room.name}</h4>
-                        {room.status === 'racing' && (
-                          <span className="text-xs bg-amber-600/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30">
-                            In Progress
-                          </span>
+              {getFilteredRooms().map((room) => {
+                const isOwner = isRoomOwner(room.owner_id);
+                
+                return (
+                  <motion.div
+                    key={room.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`bg-dark-800/50 rounded-xl p-4 border ${
+                      isOwner 
+                        ? 'border-purple-500/40' 
+                        : 'border-gray-700/30 hover:border-primary-500/30'
+                    } transition-colors`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-2xl" title={room.country}>{getCountryFlag(room.country)}</span>
+                          <h4 className="font-semibold text-gray-200">{room.name}</h4>
+                          {isOwner && (
+                            <span className="text-xs bg-purple-600/20 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/30">
+                              <Shield className="w-3 h-3 inline mr-1" />
+                              Owner
+                            </span>
+                          )}
+                          {room.status === 'racing' && (
+                            <span className="text-xs bg-amber-600/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30">
+                              In Progress
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-400 mt-1 flex items-center">
+                          <Users className="w-3.5 h-3.5 mr-1.5" />
+                          {room.current_players}/{room.max_players} players
+                        </div>
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => isOwner ? handleJoinRequest(room.id) : handleJoinRequest(room.id)}
+                        disabled={room.current_players >= room.max_players || room.status === 'racing' || selectedRoomId === room.id}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 ${
+                          room.current_players >= room.max_players || room.status === 'racing'
+                            ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                            : selectedRoomId === room.id
+                            ? 'bg-amber-600 text-white'
+                            : isOwner
+                            ? 'bg-purple-600 text-white hover:bg-purple-700'
+                            : 'bg-primary-600 text-white hover:bg-primary-700'
+                        }`}
+                      >
+                        {selectedRoomId === room.id ? (
+                          <>
+                            <Loader className="w-4 h-4 animate-spin" />
+                            <span>Joining...</span>
+                          </>
+                        ) : room.current_players >= room.max_players ? (
+                          <span>Full</span>
+                        ) : room.status === 'racing' ? (
+                          <span>In Progress</span>
+                        ) : isOwner ? (
+                          <>
+                            <Shield className="w-4 h-4" />
+                            <span>Resume</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-4 h-4" />
+                            <span>Join</span>
+                          </>
                         )}
-                      </div>
-                      <div className="text-sm text-gray-400 mt-1 flex items-center">
-                        <Users className="w-3.5 h-3.5 mr-1.5" />
-                        {room.current_players}/{room.max_players} players
-                      </div>
+                      </motion.button>
                     </div>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleJoinRequest(room.id)}
-                      disabled={room.current_players >= room.max_players || room.status === 'racing' || selectedRoomId === room.id}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 ${
-                        room.current_players >= room.max_players || room.status === 'racing'
-                          ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                          : selectedRoomId === room.id
-                          ? 'bg-amber-600 text-white'
-                          : 'bg-primary-600 text-white hover:bg-primary-700'
-                      }`}
-                    >
-                      {selectedRoomId === room.id ? (
-                        <>
-                          <Loader className="w-4 h-4 animate-spin" />
-                          <span>Joining...</span>
-                        </>
-                      ) : room.current_players >= room.max_players ? (
-                        <span>Full</span>
-                      ) : room.status === 'racing' ? (
-                        <span>In Progress</span>
-                      ) : (
-                        <>
-                          <UserPlus className="w-4 h-4" />
-                          <span>Join</span>
-                        </>
-                      )}
-                    </motion.button>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12 bg-dark-800/30 rounded-xl border border-gray-700/30">
@@ -675,7 +692,15 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
                 <div className="flex items-center space-x-3">
                   <span className="text-2xl" title={room?.country}>{getCountryFlag(room?.country)}</span>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-200">Room: {room?.name}</h3>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-xl font-bold text-gray-200">Room: {room?.name}</h3>
+                      {room && user && room.owner_id === user.id && (
+                        <span className="text-xs bg-purple-600/20 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/30">
+                          <Shield className="w-3 h-3 inline mr-1" />
+                          Owner
+                        </span>
+                      )}
+                    </div>
                     <div className="text-gray-400 mt-1">Waiting for players... ({players.length}/{room?.max_players || 4})</div>
                   </div>
                 </div>
@@ -756,15 +781,25 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
                   <div key={player.id} className="flex items-center space-x-3 bg-dark-800/50 rounded-lg p-3">
                     <span className="text-xl" title={player.country}>{getCountryFlag(player.country || 'US')}</span>
                     <UserCheck className="w-5 h-5 text-success-400" />
-                    <span className="text-gray-300">{player.username}</span>
-                    {player.id === user?.id && (
-                      <span className="text-xs bg-primary-600 text-white px-2 py-1 rounded-full">{t('multiplayer.you')}</span>
-                    )}
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-gray-300">{player.username}</span>
+                        {player.id === user?.id && (
+                          <span className="text-xs bg-primary-600 text-white px-2 py-1 rounded-full">{t('multiplayer.you')}</span>
+                        )}
+                        {room && room.owner_id === player.id && (
+                          <span className="text-xs bg-purple-600/20 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/30">
+                            <Shield className="w-3 h-3 inline mr-1" />
+                            Owner
+                          </span>
+                        )}
+                      </div>
+                    </div>
                     {room && user && room.owner_id === user.id && player.id !== user.id && (
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="ml-auto p-1.5 bg-error-600/20 text-error-400 rounded-lg hover:bg-error-600/30 transition-colors"
+                        className="p-1.5 bg-error-600/20 text-error-400 rounded-lg hover:bg-error-600/30 transition-colors"
                         title="Remove player"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -845,13 +880,21 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
                           {player.position || (index + 1)}
                         </div>
                         <span className="text-xl" title={player.country}>{getCountryFlag(player.country || 'US')}</span>
-                        <span className="font-medium text-gray-200">{player.username}</span>
-                        {player.id === user?.id && (
-                          <span className="text-xs bg-primary-600 text-white px-2 py-1 rounded-full">{t('multiplayer.you')}</span>
-                        )}
-                        {player.isFinished && (
-                          <Trophy className="w-4 h-4 text-amber-400" />
-                        )}
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium text-gray-200">{player.username}</span>
+                          {player.id === user?.id && (
+                            <span className="text-xs bg-primary-600 text-white px-2 py-1 rounded-full">{t('multiplayer.you')}</span>
+                          )}
+                          {room && room.owner_id === player.id && (
+                            <span className="text-xs bg-purple-600/20 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/30">
+                              <Shield className="w-3 h-3 inline mr-1" />
+                              Owner
+                            </span>
+                          )}
+                          {player.isFinished && (
+                            <Trophy className="w-4 h-4 text-amber-400" />
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center space-x-4 text-sm">
                         <span className="text-primary-400">{player.wpm} {t('typing.wpm')}</span>
@@ -936,8 +979,18 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
                             <span className="text-xl" title={player.country}>{getCountryFlag(player.country || 'US')}</span>
                             <div className="font-bold text-gray-200">{player.username}</div>
                           </div>
-                          <div className="text-sm text-gray-400">{player.wpm} {t('typing.wpm')}</div>
-                          <div className="text-xs text-gray-500">{player.accuracy}% accuracy</div>
+                          <div className="flex items-center justify-center space-x-2">
+                            <div className="text-sm text-gray-400">{player.wpm} {t('typing.wpm')}</div>
+                            <div className="text-xs text-gray-500">{player.accuracy}% accuracy</div>
+                          </div>
+                          {room && room.owner_id === player.id && (
+                            <div className="mt-2">
+                              <span className="text-xs bg-purple-600/20 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/30">
+                                <Shield className="w-3 h-3 inline mr-1" />
+                                Room Owner
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
