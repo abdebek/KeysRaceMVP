@@ -85,7 +85,7 @@ function App() {
 
           {/* Dappier AskAI Widget */}
           <div id="dappier-ask-ai-widget">
-            <dappier-ask-ai-widget widgetId="wd_01jw8xz7ztf4zr22e2whnsxp7s" />
+            <dappier-ask-ai-widget widgetId="wd_01jz130xmje90br3xsp6b1ha0e" />
           </div>
           
           {/* Custom AskAI Button */}
