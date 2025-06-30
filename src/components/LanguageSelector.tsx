@@ -15,14 +15,13 @@ export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }
   const { i18n, t } = useTranslation();
 
   const languages = [
-    { code: 'en', name: 'English' },
-    { code: 'tr', name: 'Türkçe' },
-    { code: 'es', name: 'Español' },
-    { code: 'fr', name: 'Français' }
+    { code: 'en', name: 'English', flag: '🇺🇸' },
+    { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+    { code: 'es', name: 'Español', flag: '🇪🇸' },
+    { code: 'fr', name: 'Français', flag: '🇫🇷' }
   ];
 
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
-  const currentFlag = getLanguageFlag(currentLanguage.code);
 
   const handleLanguageChange = (languageCode: string) => {
     i18n.changeLanguage(languageCode);
@@ -38,7 +37,6 @@ export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }
         <div className="grid grid-cols-2 gap-2">
           {languages.map((language) => {
             const isSelected = i18n.language === language.code;
-            const flag = getLanguageFlag(language.code);
             
             return (
               <motion.button
@@ -55,7 +53,7 @@ export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }
                 `}
               >
                 <div className="flex items-center space-x-2">
-                  <span className="text-lg">{flag}</span>
+                  <span className="text-lg">{language.flag}</span>
                   <span className="font-medium">{language.name}</span>
                 </div>
                 
@@ -81,7 +79,7 @@ export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }
         title={t('common.selectLanguage', 'Change Language')}
       >
         <Globe className="w-4 h-4" />
-        <span className="text-lg">{currentFlag}</span>
+        <span className="text-lg">{currentLanguage.flag}</span>
         <span className="hidden md:inline text-sm">{currentLanguage.name}</span>
       </motion.button>
 
@@ -108,7 +106,6 @@ export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }
               
               {languages.map((language) => {
                 const isSelected = i18n.language === language.code;
-                const flag = getLanguageFlag(language.code);
                 
                 return (
                   <motion.button
@@ -125,7 +122,7 @@ export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }
                     `}
                   >
                     <div className="flex items-center space-x-3">
-                      <span className="text-lg">{flag}</span>
+                      <span className="text-lg">{language.flag}</span>
                       <div>
                         <div className="font-medium">{language.name}</div>
                         <div className="text-xs opacity-70">{t(`languages.${language.code}`, language.name)}</div>
