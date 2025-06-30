@@ -13,6 +13,7 @@ import { GlobalLeaderboard } from './GlobalLeaderboard';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { HackathonShowcase } from './HackathonShowcase';
+import { BoltBadge } from './BoltBadge';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from './NotificationSystem';
 import { TestConfig } from '../types';
@@ -74,6 +75,13 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
     duration: Math.floor(Math.random() * 300) + 60
   }));
 
+  // Add Bolt Badge to each view
+  const renderBoltBadge = () => (
+    <div className="fixed bottom-4 right-4 z-40">
+      <BoltBadge variant="compact" />
+    </div>
+  );
+
   return (
     <AnimatePresence mode="wait">
       {currentView === 'hackathon' && (
@@ -85,6 +93,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
           transition={{ duration: 0.3 }}
         >
           <HackathonShowcase onViewChange={onViewChange || (() => {})} />
+          {renderBoltBadge()}
         </motion.div>
       )}
 
@@ -100,6 +109,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
             config={config}
             onConfigChange={onConfigChange}
           />
+          {renderBoltBadge()}
         </motion.div>
       )}
 
@@ -114,6 +124,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
         >
           <Statistics />
           <TypingHeatmap sessions={mockHeatmapData} />
+          {renderBoltBadge()}
         </motion.div>
       )}
 
@@ -126,6 +137,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
           transition={{ duration: 0.3 }}
         >
           <Settings />
+          {renderBoltBadge()}
         </motion.div>
       )}
 
@@ -141,6 +153,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
           <div className="mt-8">
             <GlobalLeaderboard />
           </div>
+          {renderBoltBadge()}
         </motion.div>
       )}
 
@@ -153,6 +166,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
           transition={{ duration: 0.3 }}
         >
           <MultiplayerRacing onStartRace={handleStartRace} />
+          {renderBoltBadge()}
         </motion.div>
       )}
 
@@ -165,6 +179,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
           transition={{ duration: 0.3 }}
         >
           <AICoach />
+          {renderBoltBadge()}
         </motion.div>
       )}
 
@@ -177,6 +192,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
           transition={{ duration: 0.3 }}
         >
           <PremiumFeatures onUpgrade={handleUpgrade} />
+          {renderBoltBadge()}
         </motion.div>
       )}
 
@@ -189,6 +205,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
           transition={{ duration: 0.3 }}
         >
           <TypingTutorial />
+          {renderBoltBadge()}
         </motion.div>
       )}
 
@@ -201,6 +218,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
           transition={{ duration: 0.3 }}
         >
           <PrivacyPolicy />
+          {renderBoltBadge()}
         </motion.div>
       )}
 
@@ -213,6 +231,7 @@ export function ViewManager({ currentView, config, onConfigChange, onViewChange 
           transition={{ duration: 0.3 }}
         >
           <TermsOfService />
+          {renderBoltBadge()}
         </motion.div>
       )}
     </AnimatePresence>

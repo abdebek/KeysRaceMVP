@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { AuthModal } from './AuthModal';
 import { LanguageSelector } from './LanguageSelector';
 import { signOut } from '../lib/supabase';
+import { BoltLogo } from './BoltLogo';
 
 interface HeaderProps {
   currentView: string;
@@ -112,6 +113,11 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                   KeysRace
                 </motion.h1>
               </div>
+              
+              {/* Bolt Logo in Header */}
+              <div className="ml-2">
+                <BoltLogo size="sm" />
+              </div>
             </div>
 
             {/* Desktop Navigation - Centered */}
@@ -192,6 +198,23 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                           </motion.button>
                         );
                       })}
+                      
+                      {/* Settings in dropdown */}
+                      <motion.button
+                        whileHover={{ scale: 1.02, x: 4 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleNavClick('settings')}
+                        className={`
+                          w-full flex items-center space-x-3 px-3 py-3 rounded-lg font-medium transition-all duration-200 text-left
+                          ${currentView === 'settings'
+                            ? 'bg-gray-600/90 text-white shadow-lg' 
+                            : 'text-gray-300 hover:text-white hover:bg-dark-800/80'
+                          }
+                        `}
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span className="text-sm">{t('navigation.settings')}</span>
+                      </motion.button>
                     </div>
                   </div>
                 </div>
@@ -378,6 +401,26 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                       </motion.button>
                     );
                   })}
+                  
+                  {/* Settings in mobile menu */}
+                  <motion.button
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: navItems.length * 0.05 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleNavClick('settings')}
+                    className={`
+                      flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 text-left
+                      ${currentView === 'settings'
+                        ? 'bg-gray-600 text-white shadow-lg shadow-gray-600/25' 
+                        : 'text-gray-400 hover:text-gray-200 hover:bg-dark-800'
+                      }
+                    `}
+                  >
+                    <Settings className="w-5 h-5" />
+                    <span>{t('navigation.settings')}</span>
+                  </motion.button>
                   
                   {/* Premium Section */}
                   <div className="border-t border-gray-700/30 mt-2 pt-2">

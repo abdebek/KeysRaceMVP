@@ -9,6 +9,7 @@ import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { NotificationSystem, useNotifications } from './components/NotificationSystem';
 import { TypingProvider } from './contexts/TypingContext';
 import { TestConfig } from './types';
+import { BoltLogo } from './components/BoltLogo';
 
 function App() {
   const [currentView, setCurrentView] = useState('test'); // Start with test view instead of hackathon
@@ -69,6 +70,11 @@ function App() {
 
           {/* Header now spans full width */}
           <Header currentView={currentView} onViewChange={handleViewChange} />
+
+          {/* Prominent Bolt Logo */}
+          <div className="container mx-auto px-4 py-4 flex justify-center">
+            <BoltLogo size="lg" variant="gradient" />
+          </div>
 
           {/* Content with wider container */}
           <div className="relative z-10 container mx-auto px-4 py-4 md:py-8 max-w-9xl">

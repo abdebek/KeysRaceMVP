@@ -4,7 +4,7 @@ A revolutionary typing test application that transforms traditional typing pract
 
 ## 🚀 Live Demo
 
-**Production URL:** [https://keysrace.waanfeetan.com](https://keysrace.waanfeetan.com)
+**Production URL:** [https://keysrace.com](https://keysrace.com)
 
 ## ✨ Key Features
 
