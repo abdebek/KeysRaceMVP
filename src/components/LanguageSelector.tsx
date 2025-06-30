@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Globe, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getLanguageFlag } from './CountryFlags';
+import { LanguageFlag } from './CountryFlags';
 
 interface LanguageSelectorProps {
   isOpen: boolean;
@@ -15,10 +15,10 @@ export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }
   const { i18n, t } = useTranslation();
 
   const languages = [
-    { code: 'en', name: 'English', flag: '🇺🇸' },
-    { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
-    { code: 'es', name: 'Español', flag: '🇪🇸' },
-    { code: 'fr', name: 'Français', flag: '🇫🇷' }
+    { code: 'en', name: 'English', flag: <LanguageFlag languageCode="en" /> },
+    { code: 'tr', name: 'Türkçe', flag: <LanguageFlag languageCode="tr" /> },
+    { code: 'es', name: 'Español', flag: <LanguageFlag languageCode="es" /> },
+    { code: 'fr', name: 'Français', flag: <LanguageFlag languageCode="fr" /> }
   ];
 
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
@@ -53,7 +53,7 @@ export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }
                 `}
               >
                 <div className="flex items-center space-x-2">
-                  <span className="text-lg">{language.flag}</span>
+                  {language.flag}
                   <span className="font-medium">{language.name}</span>
                 </div>
                 
@@ -79,7 +79,7 @@ export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }
         title={t('common.selectLanguage', 'Change Language')}
       >
         <Globe className="w-4 h-4" />
-        <span className="text-lg">{currentLanguage.flag}</span>
+        {currentLanguage.flag}
         <span className="hidden md:inline text-sm">{currentLanguage.name}</span>
       </motion.button>
 
@@ -122,7 +122,7 @@ export function LanguageSelector({ isOpen, onToggle, onClose, isMobile = false }
                     `}
                   >
                     <div className="flex items-center space-x-3">
-                      <span className="text-lg">{language.flag}</span>
+                      {language.flag}
                       <div>
                         <div className="font-medium">{language.name}</div>
                         <div className="text-xs opacity-70">{t(`languages.${language.code}`, language.name)}</div>

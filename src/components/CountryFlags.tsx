@@ -43,3 +43,37 @@ export function getLanguageFlag(languageCode?: string): string {
   if (!languageCode) return '🌍';
   return languageFlags[languageCode] || '🌍';
 }
+
+// Flag component for consistent rendering
+export function CountryFlag({ countryCode, size = 'md' }: { countryCode?: string, size?: 'sm' | 'md' | 'lg' }) {
+  const flag = getCountryFlag(countryCode);
+  
+  const sizeClasses = {
+    sm: 'text-base',
+    md: 'text-xl',
+    lg: 'text-2xl'
+  };
+  
+  return (
+    <span className={`${sizeClasses[size]} inline-block`} title={countryCode}>
+      {flag}
+    </span>
+  );
+}
+
+// Language flag component
+export function LanguageFlag({ languageCode, size = 'md' }: { languageCode?: string, size?: 'sm' | 'md' | 'lg' }) {
+  const flag = getLanguageFlag(languageCode);
+  
+  const sizeClasses = {
+    sm: 'text-base',
+    md: 'text-xl',
+    lg: 'text-2xl'
+  };
+  
+  return (
+    <span className={`${sizeClasses[size]} inline-block`} title={languageCode}>
+      {flag}
+    </span>
+  );
+}
