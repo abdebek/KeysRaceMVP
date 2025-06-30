@@ -1,0 +1,50 @@
+{
+  "name": "KeysRace - Modern Typing Experience",
+  "short_name": "KeysRace",
+  "description": "Experience the future of typing tests with real-time analytics, interactive tutorials, and gamified challenges.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity", "games"],
+  "lang": "en",
+  "dir": "ltr",
+  "scope": "/",
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Start Typing Test",
+      "short_name": "Test",
+      "description": "Start a new typing test",
+      "url": "/?view=test",
+      "icons": [{ "src": "/favicon.ico", "sizes": "96x96" }]
+    },
+    {
+      "name": "View Statistics",
+      "short_name": "Stats",
+      "description": "View your typing statistics",
+      "url": "/?view=stats",
+      "icons": [{ "src": "/favicon.ico", "sizes": "96x96" }]
+    }
+  ]
+}
