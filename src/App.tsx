@@ -8,6 +8,7 @@ import { OfflineMode } from './components/OfflineMode';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { NotificationSystem, useNotifications } from './components/NotificationSystem';
 import { TypingProvider } from './contexts/TypingContext';
+import { AskAIWidget } from './components/AskAIWidget';
 import { TestConfig } from './types';
 
 function App() {
@@ -81,6 +82,14 @@ function App() {
 
             <Footer onViewChange={handleViewChange} />
           </div>
+
+          {/* Dappier AskAI Widget */}
+          <div id="dappier-ask-ai-widget">
+            <dappier-ask-ai-widget widgetId="wd_01jw8xz7ztf4zr22e2whnsxp7s" />
+          </div>
+          
+          {/* Custom AskAI Button */}
+          <AskAIWidget />
         </div>
       </ErrorBoundary>
     </TypingProvider>
