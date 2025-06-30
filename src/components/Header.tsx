@@ -113,11 +113,6 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                   KeysRace
                 </motion.h1>
               </div>
-              
-              {/* Bolt Logo in Header */}
-              <div className="ml-2">
-                <BoltLogo size="sm" />
-              </div>
             </div>
 
             {/* Desktop Navigation - Centered */}
