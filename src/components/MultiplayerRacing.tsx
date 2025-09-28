@@ -1,18 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Crown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useTypingTest } from '../hooks/useTypingTest';
 import { useKeyboardTracking } from '../hooks/useKeyboardTracking';
 import { useRealTimeMultiplayer } from '../hooks/useRealTimeMultiplayer';
-import { TextDisplay } from './TextDisplay';
-import { StatsDisplay } from './StatsDisplay';
-import { VirtualKeyboard } from './VirtualKeyboard';
 import { TestConfig } from '../types';
 import { getRandomText } from '../data/texts';
 
 // Import multiplayer components
+import { MultiplayerHeader } from './multiplayer/MultiplayerHeader';
 import { RoomList } from './multiplayer/RoomList';
 import { RoomLobby } from './multiplayer/RoomLobby';
 import { RaceProgress } from './multiplayer/RaceProgress';
@@ -21,6 +18,7 @@ import { CreateRoomModal } from './multiplayer/CreateRoomModal';
 import { CountdownOverlay } from './multiplayer/CountdownOverlay';
 import { AuthRequiredMessage } from './multiplayer/AuthRequiredMessage';
 import { LoadingState } from './multiplayer/LoadingState';
+import { RaceInterface } from './multiplayer/RaceInterface';
 
 interface MultiplayerRacingProps {
   onStartRace: () => void;
@@ -32,7 +30,6 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [raceStartTime, setRaceStartTime] = useState<number>(0);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
-  const [roomName, setRoomName] = useState('');
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeRooms, setActiveRooms] = useState<any[]>([]);
@@ -41,6 +38,7 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
   const [joinRequests, setJoinRequests] = useState<any[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [roomFilter, setRoomFilter] = useState<string>('all');
+  const [pendingJoinRequests, setPendingJoinRequests] = useState<Record<string, boolean>>({});
 
   // Real-time multiplayer hook
   const {
@@ -58,7 +56,8 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
     acceptJoinRequest,
     rejectJoinRequest,
     requestToJoin,
-    getJoinRequests
+    getJoinRequests,
+    sendJoinRequest
   } = useRealTimeMultiplayer();
 
   // Default race text
@@ -106,46 +105,47 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
     return () => setError(null);
   }, [showCreateRoom]);
 
-  // Handle keyboard input during race
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (gameState !== 'racing') return;
-      
-      // Prevent default for typing keys
-      if (e.key.length === 1 || e.key === 'Backspace') {
-        e.preventDefault();
-        handleKeyPress(e.key, (key, isCorrect) => {
-          trackKeyPress(key, isCorrect);
-        });
-      }
-      
-      // Handle special keys
-      if (e.key === 'Tab' || e.key === 'Escape') {
-        e.preventDefault();
-        handleResetRace();
-      }
-    };
+  // Handle keyboard input during race - memoized to prevent unnecessary re-renders
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (gameState !== 'racing') return;
+    
+    // Prevent default for typing keys
+    if (e.key.length === 1 || e.key === 'Backspace') {
+      e.preventDefault();
+      handleKeyPress(e.key, (key, isCorrect) => {
+        trackKeyPress(key, isCorrect);
+      });
+    }
+    
+    // Handle special keys
+    if (e.key === 'Tab' || e.key === 'Escape') {
+      e.preventDefault();
+      handleResetRace();
+    }
+  }, [gameState, handleKeyPress, trackKeyPress]);
 
+  // Update progress in real-time - optimized to reduce updates
+  useEffect(() => {
+    if (gameState === 'racing' && testIsActive && room) {
+      const progress = Math.min(100, (currentIndex / raceText.length) * 100);
+      
+      // Throttle updates to reduce network traffic
+      const updateThrottled = () => {
+        updateProgress(progress, stats.wpm, stats.accuracy);
+      };
+      
+      // Use requestAnimationFrame for smoother updates
+      requestAnimationFrame(updateThrottled);
+    }
+  }, [currentIndex, raceText.length, stats, gameState, testIsActive, room, updateProgress]);
+
+  // Set up keyboard event listener
+  useEffect(() => {
     if (gameState === 'racing') {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [gameState, handleKeyPress, trackKeyPress]);
-
-  // Update progress in real-time
-  useEffect(() => {
-    if (gameState === 'racing' && testIsActive && room) {
-      const progress = Math.min(100, (currentIndex / raceText.length) * 100);
-      updateProgress(progress, stats.wpm, stats.accuracy);
-    }
-  }, [currentIndex, raceText.length, stats, gameState, testIsActive, room, updateProgress]);
-
-  // Auto-focus input when race starts
-  useEffect(() => {
-    if (gameState === 'racing') {
-      setTimeout(() => focusInput(), 100);
-    }
-  }, [gameState, focusInput]);
+  }, [gameState, handleKeyDown]);
 
   // Load join requests when room owner
   useEffect(() => {
@@ -192,14 +192,16 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
             user_id: 'demo-user-1', 
             username: 'FastFingers', 
             created_at: new Date().toISOString(),
-            country: 'US'
+            country: 'US',
+            message: 'Hi, I would like to join your race! I average around 80 WPM.'
           },
           { 
             id: 'req-2', 
             user_id: 'demo-user-2', 
             username: 'TypeMaster', 
             created_at: new Date(Date.now() - 60000).toISOString(),
-            country: 'JP'
+            country: 'JP',
+            message: 'Looking for a challenge! Can I join?'
           }
         ]);
       }
@@ -219,7 +221,6 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
       const randomText = getRandomText('quotes');
       await createRoom(name.trim(), randomText);
       setShowCreateRoom(false);
-      setRoomName('');
     } catch (error: any) {
       console.error('Failed to create room:', error);
       setError(error.message || t('multiplayer.failedToCreateRoom'));
@@ -231,15 +232,58 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
   const handleJoinRequest = async (roomId: string) => {
     setSelectedRoomId(roomId);
     try {
-      await requestToJoin(roomId);
-      // In a real app, this would update the UI to show "Request Sent"
-      // For demo, we'll just simulate joining directly
-      await joinRoom(roomId);
+      // For rooms owned by the current user, join directly
+      const room = activeRooms.find(r => r.id === roomId);
+      if (room && room.owner_id === user?.id) {
+        await joinRoom(roomId);
+        return;
+      }
+      
+      // For other rooms, send a join request
+      if (sendJoinRequest) {
+        // Mark this room as having a pending request
+        setPendingJoinRequests(prev => ({ ...prev, [roomId]: true }));
+        
+        // In a real app, we'd wait for the owner to accept
+        // For demo, we'll just join directly after a delay
+        setTimeout(async () => {
+          await joinRoom(roomId);
+          setPendingJoinRequests(prev => ({ ...prev, [roomId]: false }));
+        }, 1500);
+      } else {
+        // Fallback to direct join
+        await joinRoom(roomId);
+      }
     } catch (error: any) {
       console.error('Failed to join room:', error);
       setError(error.message || t('multiplayer.failedToJoinRoom'));
+      setPendingJoinRequests(prev => ({ ...prev, [roomId]: false }));
     } finally {
       setSelectedRoomId(null);
+    }
+  };
+
+  // Handle sending a join request with a message
+  const handleSendJoinRequest = async (roomId: string, message: string) => {
+    try {
+      // In a real app, this would send the request to the database
+      console.log(`Sending join request for room ${roomId} with message: ${message}`);
+      
+      // For demo purposes, simulate sending and auto-accept
+      setPendingJoinRequests(prev => ({ ...prev, [roomId]: true }));
+      
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Auto-join for demo
+      await joinRoom(roomId);
+      
+      // Clear pending state
+      setPendingJoinRequests(prev => ({ ...prev, [roomId]: false }));
+    } catch (error) {
+      console.error('Failed to send join request:', error);
+      setPendingJoinRequests(prev => ({ ...prev, [roomId]: false }));
+      throw error;
     }
   };
 
@@ -316,16 +360,7 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
   const simulateSecondPlayer = () => {
     if (players.length < 2) {
       // This is just for UI demonstration - in a real app, we'd have actual users joining
-      const demoPlayers = [
-        { id: 'demo-1', username: 'SpeedTyper92', progress: 0, wpm: 0, accuracy: 100, isFinished: false, country: 'US' },
-        { id: 'demo-2', username: 'KeyboardNinja', progress: 0, wpm: 0, accuracy: 100, isFinished: false, country: 'JP' }
-      ];
-      
-      // Add a simulated player for demo purposes
-      if (players.length === 1) {
-        // In a real implementation, this would come from the database via Supabase realtime
-        console.log('Simulating second player joining for demo purposes');
-      }
+      console.log('Simulating second player joining for demo purposes');
     }
   };
 
@@ -336,7 +371,7 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
 
   // Show authentication required message for non-authenticated users
   if (!isAuthenticated || !user) {
-    return <AuthRequiredMessage onSignIn={() => {}} />;
+    return <AuthRequiredMessage />;
   }
 
   return (
@@ -346,21 +381,7 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
       className="space-y-6"
     >
       {/* Header */}
-      <div className="glass-card p-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <Users className="w-6 h-6 text-primary-400" />
-          <h2 className="text-2xl font-bold text-gray-200">{t('multiplayer.title')}</h2>
-          {isPremium && (
-            <div className="bg-success-500/20 px-3 py-1 rounded-full border border-success-500/40">
-              <Crown className="w-4 h-4 text-success-400 inline mr-1" />
-              <span className="text-success-400 text-sm font-medium">{t('multiplayer.premiumActive')}</span>
-            </div>
-          )}
-        </div>
-        <p className="text-gray-400">
-          {t('multiplayer.description')}
-        </p>
-      </div>
+      <MultiplayerHeader isPremium={isPremium} />
 
       {/* Countdown Overlay */}
       <CountdownOverlay countdown={countdown} />
@@ -386,7 +407,9 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
           onRefresh={loadActiveRooms}
           onCreateRoom={() => setShowCreateRoom(true)}
           onJoinRoom={handleJoinRequest}
+          onSendJoinRequest={handleSendJoinRequest}
           setRoomFilter={setRoomFilter}
+          pendingJoinRequests={pendingJoinRequests}
         />
       ) : (
         /* In Room */
@@ -418,41 +441,20 @@ export function MultiplayerRacing({ onStartRace }: MultiplayerRacingProps) {
 
               {/* Typing Interface - Only show when racing */}
               {gameState === 'racing' && (
-                <div className="space-y-4">
-                  {/* Stats Display */}
-                  <StatsDisplay 
-                    stats={stats} 
-                    config={multiplayerConfig} 
-                    elapsedTime={elapsedTime} 
-                    isActive={testIsActive} 
-                  />
-
-                  {/* Text Display */}
-                  <TextDisplay
-                    characterStates={characterStates}
-                    currentIndex={currentIndex}
-                    onFocus={focusInput}
-                    isActive={gameState === 'racing'}
-                    isCompleted={isCompleted}
-                  />
-                  
-                  {/* Virtual Keyboard */}
-                  <VirtualKeyboard
-                    pressedKeys={pressedKeys}
-                    lastPressedKey={lastPressedKey}
-                    keyAccuracy={keyAccuracy}
-                  />
-
-                  {/* Hidden input for mobile keyboards */}
-                  <input
-                    ref={inputRef}
-                    className="absolute -left-[9999px] opacity-0"
-                    autoComplete="off"
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                  />
-                </div>
+                <RaceInterface
+                  stats={stats}
+                  characterStates={characterStates}
+                  currentIndex={currentIndex}
+                  elapsedTime={elapsedTime}
+                  isActive={testIsActive}
+                  isCompleted={isCompleted}
+                  pressedKeys={pressedKeys}
+                  lastPressedKey={lastPressedKey}
+                  keyAccuracy={keyAccuracy}
+                  focusInput={focusInput}
+                  inputRef={inputRef}
+                  config={multiplayerConfig}
+                />
               )}
 
               {/* Results */}

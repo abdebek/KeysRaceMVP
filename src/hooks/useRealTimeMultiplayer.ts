@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface Player {
@@ -32,6 +32,7 @@ interface JoinRequest {
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
   country?: string;
+  message?: string;
 }
 
 export function useRealTimeMultiplayer() {
@@ -41,6 +42,9 @@ export function useRealTimeMultiplayer() {
   const [subscription, setSubscription] = useState<any>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastProgressUpdate, setLastProgressUpdate] = useState<number>(0);
+  const [lastPlayersUpdate, setLastPlayersUpdate] = useState<number>(0);
+  const [demoPlayers, setDemoPlayers] = useState<Player[]>([]);
 
   // Set up real-time subscription when room changes
   useEffect(() => {
@@ -82,16 +86,83 @@ export function useRealTimeMultiplayer() {
       )
       .subscribe();
 
-    setSubscription({ participants: participantsSubscription, room: roomSubscription });
+    // Subscribe to join requests
+    const joinRequestsSubscription = supabase
+      .channel(`room-join-requests-${room.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'room_join_requests',
+          filter: `room_id=eq.${room.id}`
+        },
+        (payload) => {
+          console.log('Join request changed:', payload);
+          if (room.owner_id === getUserId()) {
+            fetchJoinRequests(room.id);
+          }
+        }
+      )
+      .subscribe();
+
+    setSubscription({ 
+      participants: participantsSubscription, 
+      room: roomSubscription,
+      joinRequests: joinRequestsSubscription
+    });
 
     return () => {
       participantsSubscription.unsubscribe();
       roomSubscription.unsubscribe();
+      joinRequestsSubscription.unsubscribe();
     };
   }, [room]);
 
-  // Fetch room participants
+  // Get current user ID
+  const getUserId = () => {
+    // Check for demo user first
+    const demoUserStr = localStorage.getItem('demo_user');
+    if (demoUserStr) {
+      try {
+        const demoUser = JSON.parse(demoUserStr);
+        return demoUser.id;
+      } catch (e) {
+        console.error('Error parsing demo user:', e);
+      }
+    }
+    
+    // Otherwise try to get from Supabase
+    const { data } = supabase.auth.getSession();
+    return data?.session?.user?.id;
+  };
+
+  // Get current user
+  const getUserData = async () => {
+    // Check for demo user first
+    const demoUserStr = localStorage.getItem('demo_user');
+    if (demoUserStr) {
+      try {
+        return JSON.parse(demoUserStr);
+      } catch (e) {
+        console.error('Error parsing demo user:', e);
+      }
+    }
+    
+    // Otherwise try to get from Supabase
+    const { data } = await supabase.auth.getUser();
+    return data.user;
+  };
+
+  // Fetch room participants with throttling
   const fetchRoomParticipants = async (roomId: string) => {
+    // Throttle updates to prevent excessive database queries
+    const now = Date.now();
+    if (now - lastPlayersUpdate < 500) {
+      return; // Skip if less than 500ms since last update
+    }
+    setLastPlayersUpdate(now);
+
     try {
       const { data, error } = await supabase
         .from('room_participants')
@@ -121,11 +192,11 @@ export function useRealTimeMultiplayer() {
 
         setPlayers(formattedPlayers);
       }
-    } catch (err) {
-      console.error('Error fetching room participants:', err);
+    } catch (error) {
+      console.error('Error fetching room participants:', error);
       // If we can't fetch real data, use demo data
       if (players.length === 0) {
-        setDemoPlayers(roomId);
+        initializeDemoPlayers(roomId);
       }
     }
   };
@@ -148,13 +219,7 @@ export function useRealTimeMultiplayer() {
 
       if (data) {
         setRoom({
-          id: data.id,
-          name: data.name,
-          status: data.status,
-          text_content: data.text_content,
-          max_players: data.max_players,
-          current_players: data.current_players,
-          owner_id: data.owner_id,
+          ...data,
           country: data.users?.country
         });
 
@@ -165,25 +230,65 @@ export function useRealTimeMultiplayer() {
           setGameState('finished');
         }
       }
-    } catch (err) {
-      console.error('Error fetching room details:', err);
+    } catch (error) {
+      console.error('Error fetching room details:', error);
+    }
+  };
+
+  // Fetch join requests for a room
+  const fetchJoinRequests = async (roomId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('room_join_requests')
+        .select(`
+          *,
+          users:user_id (
+            username,
+            country
+          )
+        `)
+        .eq('room_id', roomId)
+        .eq('status', 'pending');
+
+      if (error) throw error;
+
+      if (data) {
+        const formattedRequests = data.map(request => ({
+          id: request.id,
+          room_id: request.room_id,
+          user_id: request.user_id,
+          username: request.users?.username || 'Anonymous',
+          status: request.status,
+          created_at: request.created_at,
+          country: request.users?.country,
+          message: request.message
+        }));
+
+        return formattedRequests;
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Error fetching join requests:', error);
+      return [];
     }
   };
 
   // Set demo players for testing
-  const setDemoPlayers = (roomId: string) => {
-    const demoPlayers: Player[] = [
-      { id: 'demo-1', username: 'SpeedTyper92', progress: 0, wpm: 0, accuracy: 100, isFinished: false, country: 'US' },
-      { id: 'demo-2', username: 'KeyboardNinja', progress: 0, wpm: 0, accuracy: 100, isFinished: false, country: 'JP' },
-      { id: 'demo-3', username: 'CodeRacer', progress: 0, wpm: 0, accuracy: 100, isFinished: false, country: 'DE' }
+  const initializeDemoPlayers = (roomId: string) => {
+    const demoPeople = [
+      { id: 'demo-player-1', username: 'SpeedTyper92', progress: 0, wpm: 0, accuracy: 100, isFinished: false, country: 'US' },
+      { id: 'demo-player-2', username: 'KeyboardNinja', progress: 0, wpm: 0, accuracy: 100, isFinished: false, country: 'JP' },
+      { id: 'demo-player-3', username: 'CodeRacer', progress: 0, wpm: 0, accuracy: 100, isFinished: false, country: 'DE' }
     ];
-    setPlayers(demoPlayers);
+    setDemoPlayers(demoPeople);
+    setPlayers(demoPeople);
   };
 
   // Fetch active rooms
   const fetchActiveRooms = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUserData();
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
@@ -207,14 +312,14 @@ export function useRealTimeMultiplayer() {
 
       // If no rooms found, return demo rooms
       return [
-        { id: 'demo-1', name: 'Speed Demons', current_players: 2, max_players: 4, status: 'waiting', country: 'US' },
-        { id: 'demo-2', name: 'Keyboard Warriors', current_players: 3, max_players: 4, status: 'waiting', country: 'UK' },
-        { id: 'demo-3', name: 'Typing Titans', current_players: 1, max_players: 4, status: 'waiting', country: 'DE' },
-        { id: 'demo-4', name: 'Code Racers', current_players: 4, max_players: 4, status: 'racing', country: 'JP' },
-        { id: 'demo-5', name: 'Syntax Speedsters', current_players: 2, max_players: 4, status: 'waiting', country: 'CA' },
-        { id: 'demo-6', name: 'Function Racers', current_players: 1, max_players: 4, status: 'waiting', country: 'FR' },
-        { id: 'demo-7', name: 'Algorithm Aces', current_players: 3, max_players: 4, status: 'waiting', country: 'IN' },
-        { id: 'demo-8', name: 'Byte Blazers', current_players: 2, max_players: 4, status: 'waiting', country: 'BR' }
+        { id: 'demo-1', name: 'Speed Demons', current_players: 2, max_players: 4, status: 'waiting', country: 'US', owner_id: 'demo-owner-1' },
+        { id: 'demo-2', name: 'Keyboard Warriors', current_players: 3, max_players: 4, status: 'waiting', country: 'UK', owner_id: 'demo-owner-2' },
+        { id: 'demo-3', name: 'Typing Titans', current_players: 1, max_players: 4, status: 'waiting', country: 'DE', owner_id: user.id },
+        { id: 'demo-4', name: 'Code Racers', current_players: 4, max_players: 4, status: 'racing', country: 'JP', owner_id: 'demo-owner-4' },
+        { id: 'demo-5', name: 'Syntax Speedsters', current_players: 2, max_players: 4, status: 'waiting', country: 'CA', owner_id: 'demo-owner-5' },
+        { id: 'demo-6', name: 'Function Racers', current_players: 1, max_players: 4, status: 'waiting', country: 'FR', owner_id: user.id },
+        { id: 'demo-7', name: 'Algorithm Aces', current_players: 3, max_players: 4, status: 'waiting', country: 'IN', owner_id: 'demo-owner-7' },
+        { id: 'demo-8', name: 'Byte Blazers', current_players: 2, max_players: 4, status: 'waiting', country: 'BR', owner_id: 'demo-owner-8' }
       ];
     } catch (error) {
       console.error('Error fetching active rooms:', error);
@@ -225,18 +330,47 @@ export function useRealTimeMultiplayer() {
   // Create a new multiplayer room
   const createRoom = useCallback(async (roomName: string, textContent: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUserData();
       if (!user) throw new Error('Not authenticated');
 
-      // Get user's country from profile
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('username, country')
-        .eq('id', user.id)
-        .single();
+      // Get user's country from profile or use default
+      const country = user.user_metadata?.country || 'US';
+      const username = user.user_metadata?.username || user.email?.split('@')[0] || 'Anonymous';
+
+      // Check if we're in demo mode (user ID starts with 'demo-')
+      const isDemo = user.id.startsWith('demo-');
       
-      const country = userProfile?.country || 'US';
-      const username = userProfile?.username || user.email?.split('@')[0] || 'Anonymous';
+      if (isDemo) {
+        // Create a demo room
+        const demoRoom = {
+          id: `demo-room-${Date.now()}`,
+          name: roomName,
+          text_content: textContent,
+          max_players: 4,
+          current_players: 1,
+          status: 'waiting',
+          owner_id: user.id,
+          country: country
+        };
+        
+        setRoom(demoRoom);
+        
+        // Add the current user as a participant
+        const demoPlayer = {
+          id: user.id,
+          username: username,
+          progress: 0,
+          wpm: 0,
+          accuracy: 100,
+          isFinished: false,
+          country: country
+        };
+        
+        setPlayers([demoPlayer]);
+        setIsConnected(true);
+        
+        return demoRoom;
+      }
 
       // Create room in Supabase
       const { data: roomData, error: roomError } = await supabase
@@ -256,7 +390,7 @@ export function useRealTimeMultiplayer() {
         console.error('Error creating room:', roomError);
         // Fall back to demo mode if there's an error
         const simulatedRoom = {
-          id: `demo-${Date.now()}`,
+          id: `demo-room-${Date.now()}`,
           name: roomName,
           text_content: textContent,
           max_players: 4,
@@ -329,18 +463,21 @@ export function useRealTimeMultiplayer() {
   // Join an existing room
   const joinRoom = useCallback(async (roomId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUserData();
       if (!user) throw new Error('Not authenticated');
 
-      // Get user's country from profile
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('username, country')
-        .eq('id', user.id)
-        .single();
+      // Get user's country from profile or use default
+      const country = user.user_metadata?.country || 'US';
+      const username = user.user_metadata?.username || user.email?.split('@')[0] || 'Anonymous';
+
+      // Check if we're in demo mode (user ID starts with 'demo-')
+      const isDemo = user.id.startsWith('demo-') || roomId.startsWith('demo-');
       
-      const country = userProfile?.country || 'US';
-      const username = userProfile?.username || user.email?.split('@')[0] || 'Anonymous';
+      if (isDemo) {
+        // Join a demo room
+        await joinDemoRoom(roomId, user.id, username, country);
+        return;
+      }
 
       // Get room details
       const { data: roomData, error: roomError } = await supabase
@@ -419,10 +556,10 @@ export function useRealTimeMultiplayer() {
     
     // Find the room in our demo data
     const demoRooms = [
-      { id: 'demo-1', name: 'Speed Demons', current_players: 2, max_players: 4, status: 'waiting', country: 'US' },
-      { id: 'demo-2', name: 'Keyboard Warriors', current_players: 3, max_players: 4, status: 'waiting', country: 'UK' },
-      { id: 'demo-3', name: 'Typing Titans', current_players: 1, max_players: 4, status: 'waiting', country: 'DE' },
-      { id: 'demo-4', name: 'Code Racers', current_players: 4, max_players: 4, status: 'racing', country: 'JP' }
+      { id: 'demo-1', name: 'Speed Demons', current_players: 2, max_players: 4, status: 'waiting', country: 'US', owner_id: 'demo-owner-1' },
+      { id: 'demo-2', name: 'Keyboard Warriors', current_players: 3, max_players: 4, status: 'waiting', country: 'UK', owner_id: 'demo-owner-2' },
+      { id: 'demo-3', name: 'Typing Titans', current_players: 1, max_players: 4, status: 'waiting', country: 'DE', owner_id: userId },
+      { id: 'demo-4', name: 'Code Racers', current_players: 4, max_players: 4, status: 'racing', country: 'JP', owner_id: 'demo-owner-4' }
     ];
     
     const foundRoom = demoRooms.find(r => r.id === roomId) || demoRooms[0];
@@ -435,7 +572,8 @@ export function useRealTimeMultiplayer() {
       max_players: 4,
       current_players: foundRoom.current_players,
       status: 'waiting',
-      country: foundRoom.country
+      country: foundRoom.country,
+      owner_id: foundRoom.owner_id
     };
     
     setRoom(simulatedRoom);
@@ -447,7 +585,7 @@ export function useRealTimeMultiplayer() {
     
     for (let i = 0; i < foundRoom.current_players - 1; i++) {
       existingPlayers.push({
-        id: `existing-${i}`,
+        id: `demo-player-${i}`,
         username: `${names[i % names.length]}${Math.floor(Math.random() * 100)}`,
         progress: 0,
         wpm: 0,
@@ -476,7 +614,7 @@ export function useRealTimeMultiplayer() {
   // Request to join a room
   const requestToJoin = useCallback(async (roomId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUserData();
       if (!user) throw new Error('Not authenticated');
 
       // Check if user is already in the room
@@ -516,62 +654,57 @@ export function useRealTimeMultiplayer() {
     }
   }, [joinRoom]);
 
+  // Send a join request with a message
+  const sendJoinRequest = useCallback(async (roomId: string, message: string = '') => {
+    try {
+      const user = await getUserData();
+      if (!user) throw new Error('Not authenticated');
+
+      // Check if user is already in the room
+      const { data: existingParticipant } = await supabase
+        .from('room_participants')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingParticipant) {
+        // User is already in the room, just join
+        await joinRoom(roomId);
+        return true;
+      }
+
+      // Create join request with message
+      const { error } = await supabase
+        .from('room_join_requests')
+        .insert({
+          room_id: roomId,
+          user_id: user.id,
+          status: 'pending',
+          message: message
+        });
+
+      if (error) {
+        console.error('Error creating join request:', error);
+        // For demo purposes, just join directly
+        await joinRoom(roomId);
+      }
+
+      return true;
+    } catch (error: any) {
+      console.error('Error requesting to join room:', error);
+      setError(error.message);
+      throw error;
+    }
+  }, [joinRoom]);
+
   // Get join requests for a room
   const getJoinRequests = useCallback(async (roomId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUserData();
       if (!user) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
-        .from('room_join_requests')
-        .select(`
-          *,
-          users:user_id (
-            username,
-            country
-          )
-        `)
-        .eq('room_id', roomId)
-        .eq('status', 'pending');
-
-      if (error) {
-        console.error('Error fetching join requests:', error);
-        // Return demo data
-        return [
-          { 
-            id: 'req-1', 
-            room_id: roomId, 
-            user_id: 'demo-user-1', 
-            username: 'FastFingers', 
-            status: 'pending',
-            created_at: new Date().toISOString(),
-            country: 'US'
-          },
-          { 
-            id: 'req-2', 
-            room_id: roomId, 
-            user_id: 'demo-user-2', 
-            username: 'TypeMaster', 
-            status: 'pending',
-            created_at: new Date(Date.now() - 60000).toISOString(),
-            country: 'JP'
-          }
-        ];
-      }
-
-      if (data) {
-        return data.map(request => ({
-          id: request.id,
-          room_id: request.room_id,
-          user_id: request.user_id,
-          username: request.users?.username || 'Anonymous',
-          status: request.status,
-          created_at: request.created_at,
-          country: request.users?.country
-        }));
-      }
-
-      return [];
+      return await fetchJoinRequests(roomId);
     } catch (error) {
       console.error('Error getting join requests:', error);
       throw error;
@@ -581,19 +714,14 @@ export function useRealTimeMultiplayer() {
   // Accept a join request
   const acceptJoinRequest = useCallback(async (requestId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUserData();
       if (!user) throw new Error('Not authenticated');
 
-      // Get request details
-      const { data: request, error: requestError } = await supabase
-        .from('room_join_requests')
-        .select('*')
-        .eq('id', requestId)
-        .single();
-
-      if (requestError) {
-        console.error('Error fetching request:', requestError);
-        // Fall back to demo mode
+      // Check if we're in demo mode
+      const isDemo = user.id.startsWith('demo-') || requestId.startsWith('req-');
+      
+      if (isDemo) {
+        // Handle demo mode
         if (room) {
           const requestMap: Record<string, {name: string, country: string}> = {
             'req-1': { name: 'FastFingers', country: 'US' },
@@ -603,7 +731,7 @@ export function useRealTimeMultiplayer() {
           const playerInfo = requestMap[requestId] || { name: 'Player', country: 'US' };
           
           const newPlayer = {
-            id: `demo-${Date.now()}`,
+            id: `demo-player-${Date.now()}`,
             username: playerInfo.name,
             progress: 0,
             wpm: 0,
@@ -615,6 +743,18 @@ export function useRealTimeMultiplayer() {
           setPlayers(prev => [...prev, newPlayer]);
         }
         return true;
+      }
+
+      // Get request details
+      const { data: request, error: requestError } = await supabase
+        .from('room_join_requests')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+
+      if (requestError) {
+        console.error('Error fetching request:', requestError);
+        return false;
       }
 
       // Update request status
@@ -667,8 +807,14 @@ export function useRealTimeMultiplayer() {
   // Reject a join request
   const rejectJoinRequest = useCallback(async (requestId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUserData();
       if (!user) throw new Error('Not authenticated');
+
+      // Check if we're in demo mode
+      if (user.id.startsWith('demo-') || requestId.startsWith('req-')) {
+        // Just remove from the UI for demo mode
+        return true;
+      }
 
       const { error } = await supabase
         .from('room_join_requests')
@@ -687,12 +833,19 @@ export function useRealTimeMultiplayer() {
     }
   }, []);
 
-  // Update player progress
+  // Update player progress with throttling
   const updateProgress = useCallback(async (progress: number, wpm: number, accuracy: number) => {
     if (!room) return;
 
+    // Throttle updates to reduce database load
+    const now = Date.now();
+    if (now - lastProgressUpdate < 300) { // Only update every 300ms
+      return;
+    }
+    setLastProgressUpdate(now);
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUserData();
       if (!user) throw new Error('Not authenticated');
 
       // Update local player state first for immediate feedback
@@ -711,21 +864,25 @@ export function useRealTimeMultiplayer() {
         return player;
       }));
 
-      // Update in database
-      const { error } = await supabase
-        .from('room_participants')
-        .update({
-          progress,
-          wpm,
-          accuracy,
-          finished_at: progress >= 100 ? new Date().toISOString() : null
-        })
-        .eq('room_id', room.id)
-        .eq('user_id', user.id);
+      // Check if we're in demo mode
+      const isDemo = user.id.startsWith('demo-') || room.id.startsWith('demo-');
+      
+      if (!isDemo) {
+        // Update in database for real users
+        const { error } = await supabase
+          .from('room_participants')
+          .update({
+            progress,
+            wpm,
+            accuracy,
+            finished_at: progress >= 100 ? new Date().toISOString() : null
+          })
+          .eq('room_id', room.id)
+          .eq('user_id', user.id);
 
-      if (error) {
-        console.error('Error updating progress:', error);
-        // Continue with local updates for demo purposes
+        if (error) {
+          console.error('Error updating progress:', error);
+        }
       }
 
       // If player finished, calculate positions
@@ -751,14 +908,16 @@ export function useRealTimeMultiplayer() {
         if (finishedCount >= 2 || finishedCount >= updatedPlayers.length) {
           setGameState('finished');
           
-          // Update room status
-          const { error: roomError } = await supabase
-            .from('multiplayer_rooms')
-            .update({ status: 'finished' })
-            .eq('id', room.id);
-            
-          if (roomError) {
-            console.error('Error updating room status:', roomError);
+          // Update room status for real rooms
+          if (!isDemo) {
+            const { error: roomError } = await supabase
+              .from('multiplayer_rooms')
+              .update({ status: 'finished' })
+              .eq('id', room.id);
+              
+            if (roomError) {
+              console.error('Error updating room status:', roomError);
+            }
           }
         }
       }
@@ -770,18 +929,21 @@ export function useRealTimeMultiplayer() {
     } catch (error) {
       console.error('Error updating progress:', error);
     }
-  }, [room, players, gameState]);
+  }, [room, players, gameState, lastProgressUpdate]);
 
   // Simulate other players' progress for demo purposes
   const simulateOtherPlayersProgress = (currentUserId: string) => {
     setPlayers(prev => prev.map(player => {
       if (player.id === currentUserId) return player;
       
+      // Skip if not a demo player (starts with 'demo-')
+      if (!player.id.startsWith('demo-')) return player;
+      
       // Different speeds for different players
       const speedFactors: Record<string, number> = {
-        'existing-0': 0.3 + Math.random() * 0.8,
-        'existing-1': 0.4 + Math.random() * 1.0,
-        'existing-2': 0.2 + Math.random() * 0.7
+        'demo-player-0': 0.3 + Math.random() * 0.8,
+        'demo-player-1': 0.4 + Math.random() * 1.0,
+        'demo-player-2': 0.2 + Math.random() * 0.7
       };
       
       const speed = speedFactors[player.id] || (0.2 + Math.random() * 0.6);
@@ -789,9 +951,9 @@ export function useRealTimeMultiplayer() {
       
       // Assign realistic WPM based on player
       const baseWpm = {
-        'existing-0': 61,
-        'existing-1': 58,
-        'existing-2': 56
+        'demo-player-0': 61,
+        'demo-player-1': 58,
+        'demo-player-2': 56
       };
       
       const wpmVariance = Math.random() * 6 - 3; // -3 to +3 variance
@@ -816,14 +978,19 @@ export function useRealTimeMultiplayer() {
     if (!room) return;
     
     try {
-      // Update room status in database
-      const { error } = await supabase
-        .from('multiplayer_rooms')
-        .update({ status: 'racing' })
-        .eq('id', room.id);
+      // Check if we're in demo mode
+      const isDemo = room.id.startsWith('demo-');
+      
+      if (!isDemo) {
+        // Update room status in database
+        const { error } = await supabase
+          .from('multiplayer_rooms')
+          .update({ status: 'racing' })
+          .eq('id', room.id);
 
-      if (error) {
-        console.error('Error starting race:', error);
+        if (error) {
+          console.error('Error starting race:', error);
+        }
       }
       
       setGameState('racing');
@@ -839,34 +1006,42 @@ export function useRealTimeMultiplayer() {
     if (!room) return;
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getUserData();
       if (!user) throw new Error('Not authenticated');
 
-      // Remove user from room participants
-      const { error: participantError } = await supabase
-        .from('room_participants')
-        .delete()
-        .eq('room_id', room.id)
-        .eq('user_id', user.id);
+      // Check if we're in demo mode
+      const isDemo = user.id.startsWith('demo-') || room.id.startsWith('demo-');
+      
+      if (!isDemo) {
+        // Remove user from room participants
+        const { error: participantError } = await supabase
+          .from('room_participants')
+          .delete()
+          .eq('room_id', room.id)
+          .eq('user_id', user.id);
 
-      if (participantError) {
-        console.error('Error removing participant:', participantError);
-      }
+        if (participantError) {
+          console.error('Error removing participant:', participantError);
+        }
 
-      // Update room player count
-      const { error: roomError } = await supabase
-        .from('multiplayer_rooms')
-        .update({ current_players: Math.max(0, room.current_players - 1) })
-        .eq('id', room.id);
+        // Update room player count
+        const { error: roomError } = await supabase
+          .from('multiplayer_rooms')
+          .update({ current_players: Math.max(0, room.current_players - 1) })
+          .eq('id', room.id);
 
-      if (roomError) {
-        console.error('Error updating room player count:', roomError);
+        if (roomError) {
+          console.error('Error updating room player count:', roomError);
+        }
       }
 
       // Unsubscribe from real-time updates
       if (subscription) {
         subscription.participants.unsubscribe();
         subscription.room.unsubscribe();
+        if (subscription.joinRequests) {
+          subscription.joinRequests.unsubscribe();
+        }
       }
     } catch (error) {
       console.error('Error leaving room:', error);
@@ -895,6 +1070,7 @@ export function useRealTimeMultiplayer() {
     requestToJoin,
     getJoinRequests,
     acceptJoinRequest,
-    rejectJoinRequest
+    rejectJoinRequest,
+    sendJoinRequest
   };
 }

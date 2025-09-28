@@ -72,11 +72,13 @@ export interface Database {
           status: 'waiting' | 'racing' | 'finished';
           text_content: string;
           created_at: string;
+          owner_id: string;
         };
         Insert: {
           name: string;
           max_players?: number;
           text_content: string;
+          owner_id: string;
         };
       };
       room_participants: {
@@ -100,6 +102,25 @@ export interface Database {
           accuracy?: number;
           finished_at?: string | null;
           position?: number | null;
+        };
+      };
+      room_join_requests: {
+        Row: {
+          id: string;
+          room_id: string;
+          user_id: string;
+          status: 'pending' | 'accepted' | 'rejected';
+          created_at: string;
+          message?: string;
+        };
+        Insert: {
+          room_id: string;
+          user_id: string;
+          status?: 'pending' | 'accepted' | 'rejected';
+          message?: string;
+        };
+        Update: {
+          status?: 'pending' | 'accepted' | 'rejected';
         };
       };
       leaderboards: {
@@ -145,7 +166,10 @@ export async function signUp(email: string, password: string, username: string) 
     localStorage.setItem('demo_user', JSON.stringify({
       id: 'demo-' + Date.now(),
       email,
-      username,
+      user_metadata: {
+        username,
+        country: 'US'
+      },
       created_at: new Date().toISOString()
     }));
     
@@ -191,6 +215,10 @@ export async function signIn(email: string, password: string) {
     localStorage.setItem('demo_user', JSON.stringify({
       id: 'demo-' + Date.now(),
       email,
+      user_metadata: {
+        username: email.split('@')[0],
+        country: 'US'
+      },
       created_at: new Date().toISOString()
     }));
     
@@ -210,14 +238,20 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured. Using demo mode.');
+  // Check if user is a demo user
+  const demoUserStr = localStorage.getItem('demo_user');
+  if (demoUserStr) {
     // Clear demo user
     localStorage.removeItem('demo_user');
     
     // Simulate auth state change
     window.dispatchEvent(new Event('demo-auth-change'));
     
+    return;
+  }
+  
+  if (!isSupabaseConfigured()) {
+    console.warn('Supabase not configured. Using demo mode.');
     return;
   }
   

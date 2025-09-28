@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TestControls } from './TestControls';
 import { TextDisplay } from './TextDisplay';
 import { StatsDisplay } from './StatsDisplay';
 import { VirtualKeyboard } from './VirtualKeyboard';
-import { WPMGraph } from './WPMGraph';
 import { AdvancedMetrics } from './AdvancedMetrics';
 import { Results } from './Results';
 import { TypingEffects } from './TypingEffects';
@@ -41,6 +40,16 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
     inputRef
   } = useTyping();
 
+  // Track if the component is mounted
+  const isMounted = useRef(true);
+  
+  // Track focus attempts to prevent excessive refocusing
+  const focusAttempts = useRef(0);
+  const lastFocusTime = useRef(0);
+  
+  // Debounce state updates
+  const updateTimeoutRef = useRef<number>();
+
   const {
     stats,
     characterStates,
@@ -71,8 +80,20 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
 
   // Update global typing state
   useEffect(() => {
-    setIsTypingActive(isActive && !isCompleted);
-    console.log('Typing active state:', isActive && !isCompleted);
+    // Use a timeout to debounce state updates
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    
+    updateTimeoutRef.current = window.setTimeout(() => {
+      setIsTypingActive(isActive && !isCompleted);
+    }, 100);
+    
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
   }, [isActive, isCompleted, setIsTypingActive]);
 
   // Generate new text when config changes
@@ -84,7 +105,7 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
     }
   }, [config]);
 
-  // Track performance when test completes (only once per completion)
+  // Track performance when test completes
   useEffect(() => {
     if (isCompleted) {
       trackTypingPerformance({
@@ -94,7 +115,7 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
         errorCount: stats.incorrectChars
       });
 
-      // Show completion notification only once
+      // Show completion notification
       addNotification({
         type: 'success',
         title: 'Test Completed!',
@@ -102,14 +123,23 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
         duration: 4000
       });
     }
-  }, [isCompleted]); // Remove other dependencies to prevent multiple triggers
+  }, [isCompleted]);
+
+  // Set up cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      removeGlobalKeyPress();
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, [removeGlobalKeyPress]);
 
   // Handle keyboard input using global context
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       try {
-        console.log('Key pressed in TypingTestView:', e.key);
-        
         // Prevent default for typing keys
         if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Escape') {
           e.preventDefault();
@@ -122,13 +152,7 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
         // Handle Tab for restart
         if (e.key === 'Tab') {
           e.preventDefault();
-          restart();
-          resetTracking();
-          resetWPMTracking();
-          resetAdvancedMetrics();
-          clearAllNotifications();
-          // Focus input after restart
-          setTimeout(() => focusTypingInput(), 200);
+          handleRestart();
         }
       } catch (error) {
         trackError(error as Error, 'keyboard_input');
@@ -137,33 +161,53 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
 
     // Register the keyboard handler with global context
     handleGlobalKeyPress(handleKeyDown);
-    console.log('Registered typing test keyboard handler');
 
     return () => {
-      removeGlobalKeyPress();
-      console.log('Removed typing test keyboard handler');
+      if (isMounted.current) {
+        removeGlobalKeyPress();
+      }
     };
-  }, [handleKeyPress, restart, trackKeyPress, resetTracking, resetWPMTracking, addKeystroke, resetAdvancedMetrics, trackError, clearAllNotifications, focusTypingInput, handleGlobalKeyPress, removeGlobalKeyPress]);
+  }, [handleKeyPress, trackKeyPress, addKeystroke, trackError, handleGlobalKeyPress, removeGlobalKeyPress]);
 
-  // Auto-focus when component mounts
+  // Auto-focus when component mounts and periodically check focus
   useEffect(() => {
-    console.log('TypingTestView mounted, focusing input');
+    // Initial focus
     const timer = setTimeout(() => {
       focusTypingInput();
     }, 300);
-    return () => clearTimeout(timer);
-  }, [focusTypingInput]);
+    
+    // Set up periodic focus check - but with reduced frequency
+    const focusCheckInterval = setInterval(() => {
+      if (isActive && !isPaused && !isCompleted && document.activeElement !== inputRef.current) {
+        // Only attempt to refocus if we haven't tried too many times recently
+        const now = Date.now();
+        if (now - lastFocusTime.current > 3000) { // 3 seconds between focus attempts
+          focusAttempts.current = 0;
+        }
+        
+        if (focusAttempts.current < 2) { // Limit to 2 consecutive attempts
+          focusTypingInput();
+          focusAttempts.current++;
+          lastFocusTime.current = now;
+        }
+      } else {
+        // Reset focus attempts when already focused
+        focusAttempts.current = 0;
+      }
+    }, 3000); // Check less frequently (3 seconds)
+    
+    return () => {
+      clearTimeout(timer);
+      clearInterval(focusCheckInterval);
+    };
+  }, [focusTypingInput, isActive, isPaused, isCompleted, inputRef]);
 
-  const handleConfigChange = (newConfig: TestConfig) => {
+  const handleConfigChange = useCallback((newConfig: TestConfig) => {
     onConfigChange(newConfig);
-    restart();
-    resetTracking();
-    resetWPMTracking();
-    resetAdvancedMetrics();
-    clearAllNotifications();
-  };
+    handleRestart();
+  }, [onConfigChange]);
 
-  const handleRestart = () => {
+  const handleRestart = useCallback(() => {
     // Generate new text based on current config
     if (config.mode === 'words') {
       setTestText(generateCustomText(config.wordLimit));
@@ -175,20 +219,27 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
     resetWPMTracking();
     resetAdvancedMetrics();
     clearAllNotifications();
-  };
+    
+    // Reset focus attempts
+    focusAttempts.current = 0;
+    
+    // Focus input after restart
+    setTimeout(() => {
+      focusTypingInput();
+    }, 100);
+  }, [config, restart, resetTracking, resetWPMTracking, resetAdvancedMetrics, clearAllNotifications, focusTypingInput]);
 
-  const handlePauseResume = () => {
+  const handlePauseResume = useCallback(() => {
     if (isPaused) {
       resume();
+      // Focus input when resuming
+      setTimeout(() => {
+        focusTypingInput();
+      }, 100);
     } else {
       pause();
     }
-  };
-
-  const handleTextDisplayClick = () => {
-    console.log('Text display clicked, focusing input');
-    focusTypingInput();
-  };
+  }, [isPaused, resume, pause, focusTypingInput]);
 
   return (
     <>
@@ -236,7 +287,10 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={resume}
+                    onClick={() => {
+                      resume();
+                      setTimeout(() => focusTypingInput(), 100);
+                    }}
                     className="px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-all duration-200"
                   >
                     Resume Test
@@ -245,22 +299,13 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
               </motion.div>
             )}
 
-            {/* Optimized layout for typing interface */}
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-3 md:gap-4">
-              {/* Stats - takes more space */}
-              <div className="xl:col-span-3">
-                <StatsDisplay 
-                  stats={stats} 
-                  config={config} 
-                  elapsedTime={elapsedTime} 
-                  isActive={isActive && !isPaused} 
-                />
-              </div>
-              {/* WPM Graph - compact */}
-              <div className="xl:col-span-2">
-                <WPMGraph data={wpmHistory} currentWPM={stats.wpm} />
-              </div>
-            </div>
+            {/* Stats Display - Full width */}
+            <StatsDisplay 
+              stats={stats} 
+              config={config} 
+              elapsedTime={elapsedTime} 
+              isActive={isActive && !isPaused} 
+            />
 
             {/* Text Display - single line, prominent */}
             <TextDisplay
@@ -291,7 +336,11 @@ export function TypingTestView({ config, onConfigChange }: TypingTestViewProps) 
             </div>
 
             {/* Advanced Metrics - collapsible */}
-            <AdvancedMetrics stats={metrics} isVisible={showAdvancedMetrics} />
+            {/* TODO: WPM graph removed for performance reasons. Will be reimplemented in the future. */}
+            <AdvancedMetrics 
+              stats={metrics} 
+              isVisible={showAdvancedMetrics} 
+            />
 
             {/* Streak Display */}
             {correctStreak > 5 && (

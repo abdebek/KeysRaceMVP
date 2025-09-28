@@ -223,7 +223,20 @@
     "failedToJoinRoom": "Failed to join room. Please try again.",
     "owner": "Owner",
     "roomOwner": "Room Owner",
-    "players": "players"
+    "players": "players",
+    "requestToJoin": "Request to Join",
+    "joinMessage": "Message (Optional)",
+    "joinMessagePlaceholder": "Introduce yourself to the room owner...",
+    "joinMessageDescription": "Let the room owner know about your typing speed or experience.",
+    "sending": "Sending...",
+    "sendRequest": "Send Request",
+    "requestSent": "Request Sent",
+    "requestPending": "Request Pending",
+    "privateRoom": "Private Room",
+    "publicRoom": "Public Room",
+    "roomVisibility": "Room Visibility",
+    "privateRoomDescription": "Only players with approved requests can join",
+    "publicRoomDescription": "Anyone can join without approval"
   },
   "aiCoach": {
     "title": "AI Typing Coach",
@@ -335,6 +348,14 @@
     "alreadyHaveAccount": "Already have an account?",
     "signUpLink": "Sign up",
     "signInLink": "Sign in"
+  },
+  "demoUser": {
+    "tryDemo": "Try Demo",
+    "exitDemo": "Exit Demo",
+    "demoMode": "Demo Mode",
+    "demoDescription": "You're currently using a demo account with premium features enabled.",
+    "createAccount": "Create Account",
+    "signInInstead": "Sign In Instead"
   },
   "footer": {
     "hackathonBanner": "World's Largest Hackathon Entry",

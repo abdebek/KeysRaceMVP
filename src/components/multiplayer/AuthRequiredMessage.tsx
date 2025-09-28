@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { LogIn } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { DemoUserButton } from '../DemoUserButton';
 
 interface AuthRequiredMessageProps {
   onSignIn?: () => void;
@@ -26,14 +27,17 @@ export function AuthRequiredMessage({ onSignIn }: AuthRequiredMessageProps) {
         <p className="text-gray-400 mb-6">
           {t('multiplayer.signInDescription')}
         </p>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onSignIn}
-          className="px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-all duration-200"
-        >
-          {t('navigation.signIn')}
-        </motion.button>
+        <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+          <DemoUserButton />
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onSignIn}
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-all duration-200"
+          >
+            {t('navigation.signIn')}
+          </motion.button>
+        </div>
       </div>
     </motion.div>
   );

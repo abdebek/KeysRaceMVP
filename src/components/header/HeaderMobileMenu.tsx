@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart3, Trophy, Keyboard, Crown, Brain, Globe, Settings, User, LogOut } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { LanguageSelector } from '../LanguageSelector';
+import { DemoUserButton } from '../DemoUserButton';
 
 interface HeaderMobileMenuProps {
   isOpen: boolean;
@@ -28,6 +29,9 @@ export function HeaderMobileMenu({
   setShowLanguageSelector
 }: HeaderMobileMenuProps) {
   const { t } = useTranslation();
+  
+  // Check if current user is a demo user
+  const isDemoUser = user?.id?.startsWith('demo-');
 
   // Core navigation items
   const navItems = [
@@ -64,7 +68,10 @@ export function HeaderMobileMenu({
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2 text-gray-300">
                     <User className="w-4 h-4" />
-                    <span className="text-sm">{user.username || user.email?.split('@')[0] || 'User'}</span>
+                    <span className="text-sm">
+                      {user.user_metadata?.username || user.username || user.email?.split('@')[0] || 'User'}
+                      {isDemoUser && <span className="ml-1 text-amber-400">(Demo)</span>}
+                    </span>
                   </div>
                   {isPremium && (
                     <div className="bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/40 inline-flex items-center">
@@ -72,20 +79,25 @@ export function HeaderMobileMenu({
                       <span className="text-amber-400 text-sm font-medium">Premium</span>
                     </div>
                   )}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={onSignOut}
-                    className="flex items-center space-x-2 px-4 py-2 bg-error-600 text-white rounded-lg hover:bg-error-700 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>{t('navigation.signOut')}</span>
-                  </motion.button>
+                  {isDemoUser ? (
+                    <DemoUserButton className="w-full" />
+                  ) : (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={onSignOut}
+                      className="flex items-center space-x-2 px-4 py-2 bg-error-600 text-white rounded-lg hover:bg-error-700 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>{t('navigation.signOut')}</span>
+                    </motion.button>
+                  )}
                 </div>
               </div>
             ) : (
               <div className="mb-4 pb-4 border-b border-gray-700/30">
                 <div className="space-y-2">
+                  <DemoUserButton className="w-full" />
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}

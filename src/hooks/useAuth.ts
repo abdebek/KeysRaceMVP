@@ -102,11 +102,42 @@ export function useAuth() {
     }
   };
 
+  // Create a demo user
+  const createDemoUser = () => {
+    const username = `Guest${Math.floor(Math.random() * 1000)}`;
+    const email = `demo-${Date.now().toString(36)}@keysrace.com`;
+    
+    const demoUser = {
+      id: `demo-${Date.now()}`,
+      email: email,
+      user_metadata: {
+        username: username,
+        country: 'US'
+      },
+      created_at: new Date().toISOString()
+    };
+    
+    localStorage.setItem('demo_user', JSON.stringify(demoUser));
+    
+    // Trigger auth change event
+    window.dispatchEvent(new Event('demo-auth-change'));
+    
+    return demoUser;
+  };
+
+  // Clear demo user
+  const clearDemoUser = () => {
+    localStorage.removeItem('demo_user');
+    window.dispatchEvent(new Event('demo-auth-change'));
+  };
+
   return {
     user,
     loading,
     isPremium,
     isAuthenticated: !!user && !loading,
-    checkPremiumStatus
+    checkPremiumStatus,
+    createDemoUser,
+    clearDemoUser
   };
 }

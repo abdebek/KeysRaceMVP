@@ -16,6 +16,8 @@ export function TextDisplay({ characterStates, currentIndex, onFocus, isActive, 
   const { t } = useTranslation();
   const { focusTypingInput } = useTyping();
   const textDisplayRef = useRef<HTMLDivElement>(null);
+  const lastFocusAttempt = useRef<number>(0);
+  const lastScrollTime = useRef<number>(0);
 
   // Calculate visible text window for single line display
   const visibleText = useMemo(() => {
@@ -59,9 +61,36 @@ export function TextDisplay({ characterStates, currentIndex, onFocus, isActive, 
   };
 
   const handleClick = () => {
-    console.log('TextDisplay clicked, focusing input');
+    // Prevent too many focus attempts in a short period
+    const now = Date.now();
+    if (now - lastFocusAttempt.current < 200) {
+      return;
+    }
+    lastFocusAttempt.current = now;
+    
     focusTypingInput();
   };
+
+  // Ensure cursor is visible by scrolling if needed - with throttling
+  useEffect(() => {
+    if (textDisplayRef.current && adjustedCurrentIndex >= 0) {
+      const now = Date.now();
+      // Only scroll at most once every 100ms to prevent excessive reflows
+      if (now - lastScrollTime.current > 100) {
+        lastScrollTime.current = now;
+        
+        const charElements = textDisplayRef.current.querySelectorAll('span');
+        if (charElements[adjustedCurrentIndex]) {
+          // Use scrollIntoView with behavior: 'auto' for better performance
+          charElements[adjustedCurrentIndex].scrollIntoView({
+            behavior: 'auto',
+            block: 'nearest',
+            inline: 'center'
+          });
+        }
+      }
+    }
+  }, [adjustedCurrentIndex]);
 
   return (
     <motion.div
@@ -72,6 +101,13 @@ export function TextDisplay({ characterStates, currentIndex, onFocus, isActive, 
       className="glass-card p-4 md:p-6 cursor-text text-display overflow-hidden focus-target"
       onClick={handleClick}
       id="text-display-area"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        // Prevent default behavior for keyboard events
+        e.preventDefault();
+        // Focus the hidden input
+        focusTypingInput();
+      }}
     >
       {/* Compact progress indicator */}
       <div className="flex items-center justify-between mb-3 text-xs text-gray-400">
@@ -115,13 +151,13 @@ export function TextDisplay({ characterStates, currentIndex, onFocus, isActive, 
             }
             
             return (
-              <motion.span
+              <span
                 key={`${visibleText.startIndex + index}`}
                 className={className}
-                animate={{
-                  scale: isCurrentPosition ? 1.05 : 1,
+                style={{
+                  // Use transform instead of scale for better performance
+                  transform: isCurrentPosition ? 'scale(1.05)' : 'scale(1)'
                 }}
-                transition={{ duration: 0.1 }}
               >
                 {charState.char === ' ' ? '\u00A0' : charState.char}
                 {isCurrentPosition && !isCompleted && (
@@ -131,7 +167,7 @@ export function TextDisplay({ characterStates, currentIndex, onFocus, isActive, 
                     transition={{ duration: isActive ? 1 : 0, repeat: isActive ? Infinity : 0 }}
                   />
                 )}
-              </motion.span>
+              </span>
             );
           })}
         </div>

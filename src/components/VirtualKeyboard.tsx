@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
@@ -41,8 +41,8 @@ export function VirtualKeyboard({ pressedKeys, lastPressedKey, keyAccuracy }: Vi
     };
   }, []);
 
-  // Complete keyboard layout with all standard keys
-  const keyboardLayout = [
+  // Complete keyboard layout with all standard keys - memoized to prevent re-renders
+  const keyboardLayout = useMemo(() => [
     // Number row
     [
       { key: '`', width: 'w-6 md:w-8' },
@@ -116,58 +116,89 @@ export function VirtualKeyboard({ pressedKeys, lastPressedKey, keyAccuracy }: Vi
       { key: 'Alt', width: 'w-8 md:w-10', label: 'Alt' },
       { key: 'Ctrl', width: 'w-10 md:w-12', label: 'Ctrl' }
     ]
-  ];
+  ], [t]);
 
-  const getKeyAccuracy = (key: string) => {
-    const normalizedKey = key.toLowerCase();
-    const accuracy = keyAccuracy[normalizedKey];
-    if (!accuracy || accuracy.total === 0) return 100;
-    return Math.round((accuracy.correct / accuracy.total) * 100);
-  };
-
-  const getKeyColor = (key: string, accuracy: number) => {
-    const normalizedKey = key.toLowerCase();
-    const isPressed = pressedKeys.has(normalizedKey) || pressedKeys.has(key);
-    const isLastPressed = lastPressedKey === normalizedKey || lastPressedKey === key;
+  // Memoize key accuracy calculation to prevent recalculation on every render
+  const getKeyAccuracy = useMemo(() => {
+    const accuracyMap = new Map<string, number>();
     
-    // Special handling for CAPS LOCK
-    if (key === 'CapsLock') {
-      if (capsLockActive) {
-        return 'bg-amber-500 text-white border-amber-400 shadow-lg shadow-amber-500/50';
+    Object.entries(keyAccuracy).forEach(([key, data]) => {
+      if (data.total === 0) {
+        accuracyMap.set(key, 100);
+      } else {
+        accuracyMap.set(key, Math.round((data.correct / data.total) * 100));
       }
+    });
+    
+    return (key: string) => {
+      const normalizedKey = key.toLowerCase();
+      return accuracyMap.get(normalizedKey) ?? 100;
+    };
+  }, [keyAccuracy]);
+
+  // Memoize key color calculation
+  const getKeyColor = useMemo(() => {
+    return (key: string, accuracy: number) => {
+      const normalizedKey = key.toLowerCase();
+      const isPressed = pressedKeys.has(normalizedKey) || pressedKeys.has(key);
+      const isLastPressed = lastPressedKey === normalizedKey || lastPressedKey === key;
+      
+      // Special handling for CAPS LOCK
+      if (key === 'CapsLock') {
+        if (capsLockActive) {
+          return 'bg-amber-500 text-white border-amber-400 shadow-lg shadow-amber-500/50';
+        }
+        if (isPressed || isLastPressed) {
+          return 'bg-primary-500 text-white shadow-lg shadow-primary-500/50 border-primary-400';
+        }
+        return 'bg-dark-600 text-gray-300 border-gray-500 hover:bg-dark-500';
+      }
+      
+      // Special keys styling
+      const isSpecialKey = ['Shift', 'Ctrl', 'Alt', 'Tab', 'Enter', 'Backspace'].includes(key);
+      
       if (isPressed || isLastPressed) {
         return 'bg-primary-500 text-white shadow-lg shadow-primary-500/50 border-primary-400';
       }
-      return 'bg-dark-600 text-gray-300 border-gray-500 hover:bg-dark-500';
-    }
-    
-    // Special keys styling
-    const isSpecialKey = ['Shift', 'Ctrl', 'Alt', 'Tab', 'Enter', 'Backspace'].includes(key);
-    
-    if (isPressed || isLastPressed) {
-      return 'bg-primary-500 text-white shadow-lg shadow-primary-500/50 border-primary-400';
-    }
-    
-    if (isSpecialKey) {
-      return 'bg-dark-600 text-gray-300 border-gray-500 hover:bg-dark-500';
-    }
-    
-    // Letter keys with accuracy coloring
-    if (key.length === 1) {
-      if (accuracy >= 95) return 'bg-success-500/20 text-success-300 border-success-500/40 hover:bg-success-500/30';
-      if (accuracy >= 85) return 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30';
-      if (accuracy >= 70) return 'bg-orange-500/20 text-orange-300 border-orange-500/40 hover:bg-orange-500/30';
-      if (accuracy < 70 && keyAccuracy[normalizedKey]?.total > 0) {
-        return 'bg-error-500/20 text-error-300 border-error-500/40 hover:bg-error-500/30';
+      
+      if (isSpecialKey) {
+        return 'bg-dark-600 text-gray-300 border-gray-500 hover:bg-dark-500';
       }
-    }
-    
-    return 'bg-dark-700 text-gray-300 border-gray-600 hover:bg-dark-600';
-  };
+      
+      // Letter keys with accuracy coloring
+      if (key.length === 1) {
+        if (accuracy >= 95) return 'bg-success-500/20 text-success-300 border-success-500/40 hover:bg-success-500/30';
+        if (accuracy >= 85) return 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30';
+        if (accuracy >= 70) return 'bg-orange-500/20 text-orange-300 border-orange-500/40 hover:bg-orange-500/30';
+        if (accuracy < 70 && keyAccuracy[normalizedKey]?.total > 0) {
+          return 'bg-error-500/20 text-error-300 border-error-500/40 hover:bg-error-500/30';
+        }
+      }
+      
+      return 'bg-dark-700 text-gray-300 border-gray-600 hover:bg-dark-600';
+    };
+  }, [pressedKeys, lastPressedKey, capsLockActive, keyAccuracy]);
 
   const getKeyLabel = (keyObj: { key: string; label?: string }) => {
     return keyObj.label || keyObj.key.toUpperCase();
   };
+
+  // Calculate keyboard stats once per render
+  const keyboardStats = useMemo(() => {
+    const totalKeys = Object.keys(keyAccuracy).length;
+    const totalCorrect = Object.values(keyAccuracy).reduce((sum, acc) => sum + acc.correct, 0);
+    const totalErrors = Object.values(keyAccuracy).reduce((sum, acc) => sum + (acc.total - acc.correct), 0);
+    
+    let averageAccuracy = 100;
+    if (totalKeys > 0) {
+      const accuracySum = Object.values(keyAccuracy).reduce((sum, acc) => {
+        return acc.total > 0 ? sum + (acc.correct / acc.total) : sum;
+      }, 0);
+      averageAccuracy = Math.round((accuracySum / totalKeys) * 100);
+    }
+    
+    return { totalKeys, totalCorrect, totalErrors, averageAccuracy };
+  }, [keyAccuracy]);
 
   return (
     <motion.div
@@ -189,7 +220,7 @@ export function VirtualKeyboard({ pressedKeys, lastPressedKey, keyAccuracy }: Vi
         )}
         
         {/* Compact Legend */}
-        <div className="flex items-center space-x-2 text-xs">
+        <div className="hidden md:flex items-center space-x-2 text-xs">
           <div className="flex items-center space-x-1">
             <div className="w-2 h-2 bg-success-500/20 border border-success-500/40 rounded"></div>
             <span className="text-gray-400">{t('virtualKeyboard.legend95')}</span>
@@ -218,30 +249,17 @@ export function VirtualKeyboard({ pressedKeys, lastPressedKey, keyAccuracy }: Vi
                 const isLetterKey = keyObj.key.length === 1 && keyObj.key.match(/[a-z0-9`\-=[\]\\;',\.\/]/i);
                 
                 return (
-                  <motion.div
+                  <div
                     key={`${rowIndex}-${keyIndex}-${keyObj.key}`}
                     className={`
                       ${keyObj.width} h-6 md:h-8 ${keyColor} rounded border flex items-center justify-center
                       text-xs font-semibold transition-all duration-150 relative overflow-hidden
                       cursor-default group
                     `}
-                    animate={{
-                      scale: isPressed || isLastPressed ? 0.95 : 1,
-                      y: isPressed || isLastPressed ? 1 : 0,
+                    style={{
+                      transform: isPressed || isLastPressed ? 'scale(0.95) translateY(1px)' : 'scale(1) translateY(0)'
                     }}
-                    transition={{ duration: 0.1 }}
-                    whileHover={{ scale: 1.02 }}
                   >
-                    {/* Press animation effect */}
-                    {(isPressed || isLastPressed) && (
-                      <motion.div
-                        className="absolute inset-0 bg-white/20 rounded"
-                        initial={{ scale: 0, opacity: 1 }}
-                        animate={{ scale: 1.5, opacity: 0 }}
-                        transition={{ duration: 0.4 }}
-                      />
-                    )}
-                    
                     {/* Key label */}
                     <span className="relative z-10 text-center leading-tight truncate px-1">
                       {getKeyLabel(keyObj)}
@@ -249,21 +267,18 @@ export function VirtualKeyboard({ pressedKeys, lastPressedKey, keyAccuracy }: Vi
                     
                     {/* Accuracy indicator for letter keys - smaller */}
                     {isLetterKey && keyAccuracy[keyObj.key.toLowerCase()]?.total > 0 && (
-                      <motion.div 
+                      <div 
                         className="absolute bottom-0 right-0 text-[8px] font-bold opacity-80"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.2 }}
                       >
                         {accuracy}%
-                      </motion.div>
+                      </div>
                     )}
                     
                     {/* Home row indicators */}
                     {['f', 'j'].includes(keyObj.key.toLowerCase()) && (
                       <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-gray-400 rounded-full"></div>
                     )}
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
@@ -276,31 +291,25 @@ export function VirtualKeyboard({ pressedKeys, lastPressedKey, keyAccuracy }: Vi
         <div className="grid grid-cols-4 gap-2 text-center">
           <div className="bg-dark-800/50 rounded-lg p-1.5">
             <div className="text-sm font-bold text-primary-400">
-              {Object.keys(keyAccuracy).length}
+              {keyboardStats.totalKeys}
             </div>
             <div className="text-xs text-gray-400">{t('statistics.keys')}</div>
           </div>
           <div className="bg-dark-800/50 rounded-lg p-1.5">
             <div className="text-sm font-bold text-success-400">
-              {Object.values(keyAccuracy).reduce((sum, acc) => sum + acc.correct, 0)}
+              {keyboardStats.totalCorrect}
             </div>
             <div className="text-xs text-gray-400">{t('typing.correct')}</div>
           </div>
           <div className="bg-dark-800/50 rounded-lg p-1.5">
             <div className="text-sm font-bold text-error-400">
-              {Object.values(keyAccuracy).reduce((sum, acc) => sum + (acc.total - acc.correct), 0)}
+              {keyboardStats.totalErrors}
             </div>
             <div className="text-xs text-gray-400">{t('typing.errors')}</div>
           </div>
           <div className="bg-dark-800/50 rounded-lg p-1.5">
             <div className="text-sm font-bold text-amber-400">
-              {Object.values(keyAccuracy).length > 0 
-                ? Math.round(
-                    Object.values(keyAccuracy).reduce((sum, acc) => sum + (acc.correct / acc.total), 0) / 
-                    Object.values(keyAccuracy).length * 100
-                  )
-                : 100
-              }%
+              {keyboardStats.averageAccuracy}%
             </div>
             <div className="text-xs text-gray-400">{t('typing.accuracy')}</div>
           </div>

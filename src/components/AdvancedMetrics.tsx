@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Target, Zap, Clock, Brain, Activity } from 'lucide-react';
+import { TrendingUp, Target, Zap, Activity, Brain } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface AdvancedMetricsProps {
@@ -13,6 +13,8 @@ interface AdvancedMetricsProps {
     errorRate: number;
   };
   isVisible: boolean;
+  wpmHistory?: any[];
+  currentWPM?: number;
 }
 
 export function AdvancedMetrics({ stats, isVisible }: AdvancedMetricsProps) {
@@ -60,37 +62,41 @@ export function AdvancedMetrics({ stats, isVisible }: AdvancedMetricsProps) {
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
-      className="glass-card p-4 md:p-6 mt-4"
+      className="space-y-4 mt-4"
     >
-      <div className="flex items-center space-x-2 mb-4">
-        <Brain className="w-5 h-5 text-primary-400" />
-        <h3 className="text-lg font-semibold text-gray-200">{t('advancedMetrics.title')}</h3>
-      </div>
+      <div className="glass-card p-4 md:p-6">
+        <div className="flex items-center space-x-2 mb-4">
+          <Brain className="w-5 h-5 text-primary-400" />
+          <h3 className="text-lg font-semibold text-gray-200">{t('advancedMetrics.title')}</h3>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map((metric, index) => {
-          const Icon = metric.icon;
-          return (
-            <motion.div
-              key={metric.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className={`${metric.bgColor} rounded-xl p-4 border border-gray-700/30 group hover:scale-105 transition-transform duration-200`}
-            >
-              <div className="flex items-center space-x-3 mb-2">
-                <Icon className={`w-5 h-5 ${metric.color}`} />
-                <span className="text-sm font-medium text-gray-300">{metric.label}</span>
-              </div>
-              <div className={`text-2xl font-bold ${metric.color} mb-1`}>
-                {metric.value}
-              </div>
-              <div className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                {metric.description}
-              </div>
-            </motion.div>
-          );
-        })}
+        {/* TODO: WPM graph removed for performance reasons. Will be reimplemented in the future. */}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {metrics.map((metric, index) => {
+            const Icon = metric.icon;
+            return (
+              <motion.div
+                key={metric.label}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+                className={`${metric.bgColor} rounded-xl p-4 border border-gray-700/30 group hover:scale-105 transition-transform duration-200`}
+              >
+                <div className="flex items-center space-x-3 mb-2">
+                  <Icon className={`w-5 h-5 ${metric.color}`} />
+                  <span className="text-sm font-medium text-gray-300">{metric.label}</span>
+                </div>
+                <div className={`text-2xl font-bold ${metric.color} mb-1`}>
+                  {metric.value}
+                </div>
+                <div className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {metric.description}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
     </motion.div>
   );

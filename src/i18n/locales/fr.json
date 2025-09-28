@@ -223,7 +223,20 @@
     "failedToJoinRoom": "Échec de la connexion à la salle. Veuillez réessayer.",
     "owner": "Propriétaire",
     "roomOwner": "Propriétaire de la Salle",
-    "players": "joueurs"
+    "players": "joueurs",
+    "requestToJoin": "Demander à Rejoindre",
+    "joinMessage": "Message (Optionnel)",
+    "joinMessagePlaceholder": "Présentez-vous au propriétaire de la salle...",
+    "joinMessageDescription": "Informez le propriétaire de la salle de votre vitesse de frappe ou de votre expérience.",
+    "sending": "Envoi...",
+    "sendRequest": "Envoyer la Demande",
+    "requestSent": "Demande Envoyée",
+    "requestPending": "Demande en Attente",
+    "privateRoom": "Salle Privée",
+    "publicRoom": "Salle Publique",
+    "roomVisibility": "Visibilité de la Salle",
+    "privateRoomDescription": "Seuls les joueurs avec des demandes approuvées peuvent rejoindre",
+    "publicRoomDescription": "N'importe qui peut rejoindre sans approbation"
   },
   "aiCoach": {
     "title": "Coach IA de Frappe",
@@ -335,6 +348,14 @@
     "alreadyHaveAccount": "Vous avez déjà un compte ?",
     "signUpLink": "S'inscrire",
     "signInLink": "Se connecter"
+  },
+  "demoUser": {
+    "tryDemo": "Essayer la Démo",
+    "exitDemo": "Quitter la Démo",
+    "demoMode": "Mode Démo",
+    "demoDescription": "Vous utilisez actuellement un compte de démonstration avec des fonctionnalités premium activées.",
+    "createAccount": "Créer un Compte",
+    "signInInstead": "Se Connecter"
   },
   "footer": {
     "hackathonBanner": "Entrée du Plus Grand Hackathon du Monde",
@@ -478,6 +499,14 @@
   "offlineMode": {
     "youreOffline": "Vous êtes hors ligne",
     "localFeaturesWork": "Les fonctionnalités locales fonctionnent toujours"
+  },
+  "demoUser": {
+    "tryDemo": "Essayer la Démo",
+    "exitDemo": "Quitter la Démo",
+    "demoMode": "Mode Démo",
+    "demoDescription": "Vous utilisez actuellement un compte de démonstration avec des fonctionnalités premium activées.",
+    "createAccount": "Créer un Compte",
+    "signInInstead": "Se Connecter"
   },
   "privacy": {
     "title": "Politique de Confidentialité",

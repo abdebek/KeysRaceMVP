@@ -223,7 +223,20 @@
     "failedToJoinRoom": "Odaya katılınamadı. Lütfen tekrar deneyin.",
     "owner": "Sahip",
     "roomOwner": "Oda Sahibi",
-    "players": "oyuncu"
+    "players": "oyuncu",
+    "requestToJoin": "Katılmak İçin İstek Gönder",
+    "joinMessage": "Mesaj (İsteğe Bağlı)",
+    "joinMessagePlaceholder": "Oda sahibine kendinizi tanıtın...",
+    "joinMessageDescription": "Oda sahibine yazma hızınız veya deneyiminiz hakkında bilgi verin.",
+    "sending": "Gönderiliyor...",
+    "sendRequest": "İstek Gönder",
+    "requestSent": "İstek Gönderildi",
+    "requestPending": "İstek Beklemede",
+    "privateRoom": "Özel Oda",
+    "publicRoom": "Herkese Açık Oda",
+    "roomVisibility": "Oda Görünürlüğü",
+    "privateRoomDescription": "Sadece onaylanmış istekleri olan oyuncular katılabilir",
+    "publicRoomDescription": "Herkes onay olmadan katılabilir"
   },
   "aiCoach": {
     "title": "AI Yazma Antrenörü",
@@ -335,6 +348,14 @@
     "alreadyHaveAccount": "Zaten hesabınız var mı?",
     "signUpLink": "Kayıt ol",
     "signInLink": "Giriş yap"
+  },
+  "demoUser": {
+    "tryDemo": "Demo Dene",
+    "exitDemo": "Demo'dan Çık",
+    "demoMode": "Demo Modu",
+    "demoDescription": "Şu anda premium özellikleri etkinleştirilmiş bir demo hesabı kullanıyorsunuz.",
+    "createAccount": "Hesap Oluştur",
+    "signInInstead": "Bunun Yerine Giriş Yap"
   },
   "footer": {
     "hackathonBanner": "Dünyanın En Büyük Hackathon Katılımı",
@@ -478,6 +499,14 @@
   "offlineMode": {
     "youreOffline": "Çevrimdışısınız",
     "localFeaturesWork": "Yerel özellikler hala çalışıyor"
+  },
+  "demoUser": {
+    "tryDemo": "Demo Dene",
+    "exitDemo": "Demo'dan Çık",
+    "demoMode": "Demo Modu",
+    "demoDescription": "Şu anda premium özellikleri etkinleştirilmiş bir demo hesabı kullanıyorsunuz.",
+    "createAccount": "Hesap Oluştur",
+    "signInInstead": "Bunun Yerine Giriş Yap"
   },
   "privacy": {
     "title": "Gizlilik Politikası",

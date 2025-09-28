@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
@@ -15,8 +15,18 @@ interface WPMGraphProps {
 
 export function WPMGraph({ data, currentWPM }: WPMGraphProps) {
   const { t } = useTranslation();
+  
+  // Filter out zero WPM points and limit to last 30 points for performance
+  const filteredData = useMemo(() => {
+    return data
+      .filter(point => point.time > 0) // Remove initial zero point
+      .slice(-30); // Only show last 30 data points for better visibility
+  }, [data]);
 
-  if (data.length < 2) {
+  // Show empty state if we don't have meaningful data yet
+  const isEmpty = filteredData.length < 2;
+
+  if (isEmpty) {
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -24,26 +34,73 @@ export function WPMGraph({ data, currentWPM }: WPMGraphProps) {
         className="glass-card p-4 h-full flex items-center justify-center"
       >
         <div className="text-center text-gray-400">
-          <div className="text-2xl mb-2">📊</div>
           <div className="text-sm">{t('wpmGraph.graphWillAppear')}</div>
         </div>
       </motion.div>
     );
   }
 
-  const maxWPM = Math.max(...data.map(d => d.wpm), currentWPM) || 100;
+  // Calculate meaningful min/max values for better graph scaling
+  const maxWPM = useMemo(() => {
+    const dataMax = Math.max(...filteredData.map(d => d.wpm), currentWPM);
+    // Round up to nearest 10 and add 10 for padding
+    return Math.ceil(dataMax / 10) * 10 + 10;
+  }, [filteredData, currentWPM]);
+
+  // Calculate time range for x-axis
+  const timeRange = useMemo(() => {
+    if (filteredData.length < 2) return 60;
+    return Math.max(60, filteredData[filteredData.length - 1].time);
+  }, [filteredData]);
+
   const width = 300;
   const height = 120;
   const padding = 20;
 
-  const getX = (index: number) => (index / (data.length - 1)) * (width - 2 * padding) + padding;
-  const getY = (wpm: number) => height - padding - ((wpm / maxWPM) * (height - 2 * padding));
+  // Improved coordinate calculation for smoother graph
+  const getX = (point: WPMDataPoint) => {
+    return ((point.time / timeRange) * (width - 2 * padding)) + padding;
+  };
+  
+  const getY = (wpm: number) => {
+    return height - padding - ((wpm / maxWPM) * (height - 2 * padding));
+  };
 
-  const pathData = data.map((point, index) => {
-    const x = getX(index);
-    const y = getY(point.wpm);
-    return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
-  }).join(' ');
+  // Generate path data for the WPM line
+  const pathData = useMemo(() => {
+    if (filteredData.length < 2) return '';
+    
+    return filteredData.map((point, index) => {
+      const x = getX(point);
+      const y = getY(point.wpm);
+      return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+    }).join(' ');
+  }, [filteredData, maxWPM, timeRange]);
+
+  // Generate path data for the accuracy line
+  const accuracyPathData = useMemo(() => {
+    if (filteredData.length < 2) return '';
+    
+    return filteredData.map((point, index) => {
+      const x = getX(point);
+      // Scale accuracy to fit in the same graph (0-100% -> 0-maxWPM)
+      const scaledAccuracy = (point.accuracy / 100) * maxWPM;
+      const y = getY(scaledAccuracy);
+      return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+    }).join(' ');
+  }, [filteredData, maxWPM, timeRange]);
+
+  // Generate grid lines based on maxWPM
+  const gridLines = useMemo(() => {
+    const lines = [];
+    const step = Math.ceil(maxWPM / 4); // 4 grid lines
+    
+    for (let wpm = 0; wpm <= maxWPM; wpm += step) {
+      lines.push(wpm);
+    }
+    
+    return lines;
+  }, [maxWPM]);
 
   return (
     <motion.div
@@ -59,7 +116,7 @@ export function WPMGraph({ data, currentWPM }: WPMGraphProps) {
       <div className="relative overflow-hidden">
         <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
           {/* Grid lines */}
-          {[0, 25, 50, 75, 100].map(wpm => (
+          {gridLines.map(wpm => (
             <g key={wpm}>
               <line
                 x1={padding}
@@ -82,6 +139,29 @@ export function WPMGraph({ data, currentWPM }: WPMGraphProps) {
             </g>
           ))}
           
+          {/* Time markers */}
+          {[0, timeRange/2, timeRange].map(time => (
+            <g key={time}>
+              <line
+                x1={((time / timeRange) * (width - 2 * padding)) + padding}
+                y1={height - padding}
+                x2={((time / timeRange) * (width - 2 * padding)) + padding}
+                y2={height - padding + 5}
+                stroke="rgb(75, 85, 99)"
+                strokeWidth="1"
+              />
+              <text
+                x={((time / timeRange) * (width - 2 * padding)) + padding}
+                y={height - 5}
+                fill="rgb(156, 163, 175)"
+                fontSize="8"
+                textAnchor="middle"
+              >
+                {Math.round(time)}s
+              </text>
+            </g>
+          ))}
+          
           {/* WPM Line */}
           <motion.path
             d={pathData}
@@ -93,41 +173,43 @@ export function WPMGraph({ data, currentWPM }: WPMGraphProps) {
             transition={{ duration: 0.5 }}
           />
           
-          {/* Data points */}
-          {data.map((point, index) => (
-            <motion.circle
-              key={index}
-              cx={getX(index)}
-              cy={getY(point.wpm)}
-              r="3"
-              fill="rgb(59, 130, 246)"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-            />
-          ))}
-          
-          {/* Accuracy overlay */}
+          {/* Accuracy Line */}
           <motion.path
-            d={data.map((point, index) => {
-              const x = getX(index);
-              const y = getY(point.accuracy);
-              return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
-            }).join(' ')}
+            d={accuracyPathData}
             fill="none"
             stroke="rgb(16, 185, 129)"
-            strokeWidth="1"
+            strokeWidth="1.5"
             strokeDasharray="3,3"
             opacity="0.7"
             initial={{ pathLength: 0 }}
             animate={{ pathLength: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           />
+          
+          {/* Current WPM Indicator */}
+          {filteredData.length > 0 && (
+            <motion.circle
+              cx={getX(filteredData[filteredData.length - 1])}
+              cy={getY(currentWPM)}
+              r="4"
+              fill="rgb(59, 130, 246)"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.5 }}
+            />
+          )}
         </svg>
         
-        <div className="flex justify-between text-xs text-gray-400 mt-2">
-          <span>{t('wpmGraph.start')}</span>
-          <span>{t('wpmGraph.time')}</span>
+        {/* Legend */}
+        <div className="flex justify-between items-center text-xs text-gray-400 mt-2">
+          <div className="flex items-center">
+            <div className="w-3 h-1 bg-blue-400 rounded mr-1"></div>
+            <span>{t('typing.wpm')}</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-1 bg-green-400 rounded mr-1 border-dashed"></div>
+            <span>{t('typing.accuracy')}</span>
+          </div>
         </div>
       </div>
     </motion.div>

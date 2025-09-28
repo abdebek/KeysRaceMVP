@@ -18,32 +18,52 @@ export function TypingProvider({ children }: { children: React.ReactNode }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const keyHandlerRef = useRef<((e: KeyboardEvent) => void) | null>(null);
+  const lastFocusAttempt = useRef<number>(0);
+  const focusTimeoutRef = useRef<number>();
 
   const focusTypingInput = useCallback(() => {
     if (inputRef.current && !isModalOpen) {
-      inputRef.current.focus();
-      console.log('Focusing typing input');
-    } else {
-      console.log('Cannot focus: modal open or input not available');
+      // Prevent too many focus attempts in a short period
+      const now = Date.now();
+      if (now - lastFocusAttempt.current < 100) {
+        return; // Skip if we just tried to focus
+      }
+      
+      lastFocusAttempt.current = now;
+      
+      // Clear any pending focus timeout
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+      }
+      
+      // Try to focus the input
+      try {
+        inputRef.current.focus({ preventScroll: true });
+        
+        // On mobile, sometimes we need to click the input first
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          inputRef.current.click();
+          inputRef.current.focus({ preventScroll: true });
+        }
+      } catch (error) {
+        console.error('Error focusing input:', error);
+      }
     }
   }, [isModalOpen]);
 
   const handleGlobalKeyPress = useCallback((handler: (e: KeyboardEvent) => void) => {
     keyHandlerRef.current = handler;
-    console.log('Registered global key handler');
   }, []);
 
   const removeGlobalKeyPress = useCallback(() => {
     keyHandlerRef.current = null;
-    console.log('Removed global key handler');
   }, []);
 
-  // Global keyboard event handler
+  // Global keyboard event handler - optimized to reduce overhead
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't handle typing if modal is open
       if (isModalOpen) {
-        console.log('Modal open, ignoring keyboard event');
         return;
       }
 
@@ -54,55 +74,67 @@ export function TypingProvider({ children }: { children: React.ReactNode }) {
         (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') && 
         target !== inputRef.current
       ) {
-        console.log('Event target is input/textarea, ignoring');
         return;
       }
 
       // Don't handle events if target is contenteditable
       if (target && target.isContentEditable) {
-        console.log('Event target is contenteditable, ignoring');
         return;
       }
 
       // Call the registered handler if available
       if (keyHandlerRef.current) {
-        console.log('Handling key event:', e.key);
         keyHandlerRef.current(e);
-      } else {
-        console.log('No key handler registered');
       }
     };
 
     // Use capture phase to get events before they reach other handlers
     document.addEventListener('keydown', handleKeyDown, true);
-    console.log('Added global keydown listener');
     
     return () => {
       document.removeEventListener('keydown', handleKeyDown, true);
-      console.log('Removed global keydown listener');
     };
   }, [isModalOpen]);
 
-  // Auto-focus when typing becomes active and no modal is open
+  // Auto-focus when typing becomes active and no modal is open - with debouncing
   useEffect(() => {
     if (isTypingActive && !isModalOpen) {
-      console.log('Auto-focusing typing input');
-      const timer = setTimeout(() => {
+      // Clear any existing timeout
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+      }
+      
+      // Set a new timeout with a short delay
+      focusTimeoutRef.current = window.setTimeout(() => {
         focusTypingInput();
       }, 100);
-      return () => clearTimeout(timer);
+      
+      return () => {
+        if (focusTimeoutRef.current) {
+          clearTimeout(focusTimeoutRef.current);
+        }
+      };
     }
   }, [isTypingActive, isModalOpen, focusTypingInput]);
 
-  // Check for modals on mount and when DOM changes
+  // Check for modals on mount and when DOM changes - optimized with debouncing
   useEffect(() => {
+    let checkTimeout: number;
+    
     const checkForModals = () => {
-      const modalElements = document.querySelectorAll('[data-modal]');
-      const hasOpenModal = modalElements.length > 0;
-      if (hasOpenModal !== isModalOpen) {
-        console.log('Modal state changed:', hasOpenModal);
-        setIsModalOpen(hasOpenModal);
+      // Cancel any pending check
+      if (checkTimeout) {
+        clearTimeout(checkTimeout);
       }
+      
+      // Schedule a new check with a short delay to batch multiple DOM changes
+      checkTimeout = window.setTimeout(() => {
+        const modalElements = document.querySelectorAll('[data-modal]');
+        const hasOpenModal = modalElements.length > 0;
+        if (hasOpenModal !== isModalOpen) {
+          setIsModalOpen(hasOpenModal);
+        }
+      }, 50);
     };
 
     // Initial check
@@ -117,8 +149,26 @@ export function TypingProvider({ children }: { children: React.ReactNode }) {
       attributeFilter: ['class', 'style', 'data-modal']
     });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (checkTimeout) {
+        clearTimeout(checkTimeout);
+      }
+    };
   }, [isModalOpen]);
+
+  // Periodically check if input should be focused - with reduced frequency
+  useEffect(() => {
+    if (!isTypingActive || isModalOpen) return;
+    
+    const focusCheckInterval = setInterval(() => {
+      if (isTypingActive && !isModalOpen && document.activeElement !== inputRef.current) {
+        focusTypingInput();
+      }
+    }, 3000); // Check less frequently (3 seconds)
+    
+    return () => clearInterval(focusCheckInterval);
+  }, [isTypingActive, isModalOpen, focusTypingInput]);
 
   return (
     <TypingContext.Provider
